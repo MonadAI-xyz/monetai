@@ -1,0 +1,12 @@
+var path = require('path');
+var srcPath = 'src';
+
+// Check if 'src' folder exists
+var isSrcExist = require('fs').existsSync(srcPath);
+
+module.exports = {
+  config: isSrcExist ? path.resolve(srcPath, 'config', 'config.js') : path.resolve('config', 'config.js'),
+  'migrations-path': isSrcExist ? path.resolve(srcPath, 'database', 'migrations') : path.resolve('database', 'migrations'),
+  'models-path': isSrcExist ? path.resolve(srcPath, 'database', 'models') : path.resolve('database', 'models'),
+  'seeders-path': isSrcExist ? path.resolve(srcPath, 'database', 'seeders') : path.resolve('database', 'seeders'),
+};
