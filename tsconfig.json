@@ -1,11 +1,73 @@
 {
-    "compilerOptions": {
-      "target": "ES6",
-      "module": "commonjs",
-      "strict": true,
-      "esModuleInterop": true,
-      "outDir": "./dist"
+  "compilerOptions": {
+    "target": "es2020",
+    "lib": [
+      "ES2021",
+      "dom",
+      "esnext.asynciterable"
+    ],
+    "typeRoots": [
+      "./node_modules/@types"
+    ],
+    "baseUrl": "./src",
+    "paths": {
+      "@database": [
+        "database"
+      ],
+      "@models": [
+        "database/models"
+      ],
+      "@services/*": [
+        "services/*"
+      ],
+      "@controllers/*": [
+        "controllers/*"
+      ],
+      "@routes/*": [
+        "routes/*"
+      ],
+      "@middlewares/*": [
+        "middlewares/*"
+      ],
+      "@interfaces/*": [
+        "interfaces/*"
+      ],
+      "@dtos/*": [
+        "dtos/*"
+      ],
+      "@utils/*": [
+        "utils/*"
+      ],
+      "@config": [
+        "config"
+      ],
+      "@exceptions/*": [
+        "exceptions/*"
+      ],
+      "@tests/*": [
+        "tests/*"
+      ]
     },
-    "include": ["src/**/*.ts"],
-    "exclude": ["node_modules"]
-  }
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "module": "commonjs",
+    "pretty": false,
+    "sourceMap": false,
+    "outDir": "./build",
+    "allowJs": true,
+    "noEmit": false,
+    "esModuleInterop": true,
+    "resolveJsonModule": true
+  },
+  "include": [
+    "./src/**/*",
+    ".env",
+    "src/services/baseService.service.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

@@ -17,3 +17,35 @@ yarn-error.log*
 
 # OS files
 .DS_Store 
+lerna-debug.log*
+.idea/*
+
+src/utils/generatedDocumentToTest.html
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Dependency directories
+node_modules/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional eslint cache
+.eslintcache
+
+# dotenv environment variables file
+.env
+.env.test
+
+#build
+build
+
+#packages
+package-lock.json
+
+.vscode
+
+/auto-models
+
+/src/utils/generatedDocumentToTest.html
