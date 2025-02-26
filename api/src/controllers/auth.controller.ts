@@ -2,7 +2,7 @@ import { HttpBadRequest } from '@exceptions/http/HttpBadRequest';
 import responsePreparer from '@middlewares/responseHandler.middleware';
 import { UserAttributes } from '@models';
 import { NextFunction, Request, Response } from 'express';
-import Services from '../services';
+import Services from '@services/index';
 
 class AuthController {
   private authService = Services.getInstance()?.authService;

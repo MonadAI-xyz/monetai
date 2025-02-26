@@ -6,7 +6,7 @@ import { IRequestWithUser } from '@interfaces/auth.interface';
 import cls from 'cls-hooked';
 import { NextFunction, RequestHandler, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import Services from '../services';
+import Services from '@services/index';
 import { UserAttributes } from '@models';
 
 const auth = config.auth;

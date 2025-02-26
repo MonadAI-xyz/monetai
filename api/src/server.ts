@@ -7,7 +7,7 @@ import App from './app';
 
 validateEnv();
 
-const app = new App([new IndexRoute(), new AuthRoute('/auth')], [new IndexRoute()]);
+const app = new App([new IndexRoute(), new AuthRoute('/auth')], [new AdminIndexRoute()]);
 
 app.listen();
 export default app;
