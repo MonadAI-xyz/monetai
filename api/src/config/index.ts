@@ -66,9 +66,6 @@ const cfg = {
       refreshToken: process.env.OAUTH_REFRESH_TOKEN,
     },
   },
-  sentry: {
-    dns: process.env.SENTRY_DNS,
-  },
 };
 
 export default cfg;

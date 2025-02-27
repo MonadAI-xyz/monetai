@@ -6,11 +6,14 @@ import jwt from 'jsonwebtoken';
 import BaseService from '@services/baseService.service';
 import UserService from '@services/user.service';
 import { User } from '@models';
-
+import { ethers } from 'ethers';
+import { HttpUnauthorized } from '@exceptions/http/HttpUnauthorized';
+import { v4 as uuidv4 } from 'uuid';
 const { secret, validMins } = config.auth;
 
 class AuthService extends BaseService {
   private userService: UserService | null = null;
+  private readonly MESSAGE = "Welcome to MonetAI! Sign this message to login.";
 
   /**
    * Generates a JWT token for the given user.
@@ -18,8 +21,10 @@ class AuthService extends BaseService {
    * @returns A JWT token as a string.
    */
   public createToken(user: any): string {
-    const expiresIn = 60 * validMins; // Token expiration time in seconds
-    return jwt.sign({ id: user.id }, secret, { expiresIn });
+    return jwt.sign(user, secret, {
+      expiresIn: `${validMins}m`,
+      issuer: config.auth.issuer,
+    });
   }
 
   /**
@@ -61,6 +66,55 @@ class AuthService extends BaseService {
     }
 
     return user;
+  }
+  
+  public async verifySignature(walletAddress: string, signature: string): Promise<any> {
+    try {
+      const signerAddr = await ethers.utils.verifyMessage(this.MESSAGE, signature);
+      console.log('signerAddr', signerAddr);
+      console.log('walletAddress', walletAddress);
+      
+      const normalizedSignerAddr = signerAddr.toLowerCase();
+      const normalizedWalletAddr = walletAddress.toLowerCase();
+      
+      console.log('normalizedSignerAddr', normalizedSignerAddr);
+      console.log('normalizedWalletAddr', normalizedWalletAddr);
+      console.log('addresses match:', normalizedSignerAddr === normalizedWalletAddr);
+
+      if (normalizedSignerAddr !== normalizedWalletAddr) {
+        throw new HttpUnauthorized('Invalid signature - addresses do not match');
+      }
+
+      try {
+        // Use User model directly instead of db.users
+        const [user] = await User.findOrCreate({
+          where: { wallet_address: normalizedWalletAddr },
+          defaults: { wallet_address: normalizedWalletAddr }
+        });
+        console.log('Created/Found user:', user);
+
+        const token = this.createToken({
+          id: user.id,
+          wallet_address: user.wallet_address
+        });
+        console.log('Generated token:', token);
+
+        const result = { token, user };
+        console.log('Returning result:', result);
+        return result;
+
+      } catch (dbError) {
+        console.error('Database error:', dbError);
+        throw new Error('Failed to create user or token');
+      }
+
+    } catch (error) {
+      console.error('Verification error:', error);
+      if (error instanceof HttpUnauthorized) {
+        throw error;
+      }
+      throw new HttpUnauthorized('Invalid signature');
+    }
   }
 }
 
