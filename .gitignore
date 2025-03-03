@@ -29,4 +29,15 @@ package-lock.json
 
 .vscode
 
+# Foundry
+smart-contracts/cache/
+smart-contracts/out/
+smart-contracts/broadcast/
+
+# Dependencies
+smart-contracts/lib/
+
+# Dotenv file
+smart-contracts/.env
+
 
