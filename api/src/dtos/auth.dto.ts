@@ -1,9 +1,11 @@
-import { IsEmail, IsString } from 'class-validator';
+import { IsString, IsNotEmpty } from 'class-validator';
 
-export class LoginRequestDTO {
-  @IsEmail()
-  public email: string;
+export class AuthDto {
+  @IsString()
+  @IsNotEmpty()
+  walletAddress: string;
 
   @IsString()
-  public password: string;
+  @IsNotEmpty()
+  signature: string;
 }

@@ -1,9 +1,5 @@
-import login from './login';
+import { login } from './login';
 
-export default {
-  paths: {
-    '/api/auth/login': {
-      ...login,
-    },
-  },
+export const auth = {
+  ...login,
 };
