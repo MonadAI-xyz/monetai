@@ -1,66 +1,82 @@
-## Foundry
+# MonetAI Smart Contracts
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+## Overview
+MonetAI is a governance token and DAO system built on Monad blockchain.
 
-Foundry consists of:
+## Setup
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
-
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
+1. Install Foundry:
+```bash
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
 ```
 
-### Test
-
-```shell
-$ forge test
+2. Install dependencies:
+```bash
+forge install
 ```
 
-### Format
-
-```shell
-$ forge fmt
+3. Create `.env` file:
+```bash
+cp .env.example .env
+# Add your private key to .env
 ```
 
-### Gas Snapshots
-
-```shell
-$ forge snapshot
+## Testing
+```bash
+forge test
+forge coverage
 ```
 
-### Anvil
+## Deployment
 
-```shell
-$ anvil
+Deploy to Monad testnet:
+```bash
+forge script script/MonetAI.s.sol:MonetAIDeploy --rpc-url https://testnet-rpc.monad.xyz/ --broadcast -vvv
 ```
 
-### Deploy
+The deployed addresses will be logged in the console and saved to `deploy/monad_testnet_deployment.json`.
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+## Contract Verification
+
+### Verify Token Contract
+```bash
+export TOKEN_ADDRESS=$(jq -r '.token' deploy/monad_testnet_deployment.json)
+forge verify-contract \
+  --rpc-url https://testnet-rpc.monad.xyz \
+  --verifier sourcify \
+  --verifier-url 'https://sourcify-api-monad.blockvision.org' \
+  $TOKEN_ADDRESS \
+  src/MonetAI.sol:MonetAI
 ```
 
-### Cast
-
-```shell
-$ cast <subcommand>
+### Verify Governor Contract
+```bash
+export GOVERNOR_ADDRESS=$(jq -r '.governor' deploy/monad_testnet_deployment.json)
+forge verify-contract \
+  --rpc-url https://testnet-rpc.monad.xyz \
+  --verifier sourcify \
+  --verifier-url 'https://sourcify-api-monad.blockvision.org' \
+  $GOVERNOR_ADDRESS \
+  src/MonetAIGovernor.sol:MonetAIGovernor
 ```
 
-### Help
+## Deployed Contracts (Monad Testnet)
 
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
+Contract addresses are stored in `deploy/monad_testnet_deployment.json`. You can view them with:
+```bash
+jq '.' deploy/monad_testnet_deployment.json
 ```
+
+## Contract Architecture
+
+### MonetAI Token
+- ERC20 token with governance capabilities
+- Implements ERC20Votes for governance
+- Role-based access control for minting, burning, and pausing
+
+### MonetAIGovernor
+- Governance contract for protocol decisions
+- Voting delay: 1 day
+- Voting period: 1 week
+- Proposal threshold: 500,000 tokens
