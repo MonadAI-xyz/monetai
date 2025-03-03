@@ -1,6 +1,7 @@
 import BaseService from './baseService.service'; // Import all services
 import AuthService from './auth.service';
 import UserService from './user.service';
+import LLMService from './llm.service';
 
 import _ from 'lodash';
 
@@ -18,36 +19,46 @@ export type IServiceInstances = ServiceInstances<typeof allServices>;
 export const allServices = {
   AuthService,
   UserService,
+  LLMService,
 };
 
 class Services {
-  private static instance: IServiceInstances = {} as IServiceInstances;
+  private static instance: Services;
+  public authService: AuthService;
+  public llmService: LLMService;
+  private static serviceInstances: IServiceInstances = {} as IServiceInstances;
 
-  public static initialize(): void {
+  private constructor() {
+    this.authService = new AuthService();
+    this.llmService = new LLMService();
+    this.initialize();
+  }
+
+  public static getInstance(): Services {
+    if (!Services.instance) {
+      Services.instance = new Services();
+    }
+    return Services.instance;
+  }
+
+  private initialize(): void {
     Object.entries(allServices).forEach(([key, ServiceClass]) => {
       const name = _.camelCase(key) as keyof IServiceInstances;
-      if (!this.instance[name]) {
-        this.instance[name] = new (ServiceClass as any)();
+      if (!Services.serviceInstances[name]) {
+        Services.serviceInstances[name] = new (ServiceClass as any)();
       }
     });
 
     this.injectDependencies();
   }
 
-  public static getInstance(): IServiceInstances {
-    if (Object.keys(this.instance).length === 0) {
-      this.initialize();
-    }
-    return this.instance;
-  }
-
-  private static injectDependencies(): void {
-    Object.entries(this.instance).forEach(([serviceName, serviceInstance]) => {
+  private injectDependencies(): void {
+    Object.entries(Services.serviceInstances).forEach(([serviceName, serviceInstance]) => {
       if (serviceInstance instanceof BaseService) {
         const dependencies: Record<string, any> = {};
-        Object.keys(this.instance).forEach(propName => {
+        Object.keys(Services.serviceInstances).forEach(propName => {
           if (propName !== serviceName) {
-            dependencies[propName] = this.instance[propName as keyof IServiceInstances];
+            dependencies[propName] = Services.serviceInstances[propName as keyof IServiceInstances];
           }
         });
         serviceInstance.setDependencies(dependencies);
@@ -55,7 +66,5 @@ class Services {
     });
   }
 }
-
-Services.initialize();
 
 export default Services;

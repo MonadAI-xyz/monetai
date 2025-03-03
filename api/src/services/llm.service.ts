@@ -1,12 +1,12 @@
-import OpenAI from 'openai';
 import config from '@config';
+import { OpenAI } from 'openai';
 
 class LLMService {
   private openai: OpenAI;
 
   constructor() {
     this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: config.ai.openai.apiKey,
     });
   }
 

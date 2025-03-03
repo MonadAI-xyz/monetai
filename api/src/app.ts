@@ -120,7 +120,7 @@ class App {
       }
     });
     routes.forEach(route => {
-      this.app.use('/', route.router);
+      this.app.use('/api', route.router);
     });
     if (adminRoutes?.length > 0) {
       adminRoutes.forEach(route => {

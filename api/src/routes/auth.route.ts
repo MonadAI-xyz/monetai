@@ -3,7 +3,7 @@ import AuthController from '@controllers/auth.controller';
 import Routes from '@interfaces/routes.interface';
 
 class AuthRoute implements Routes {
-  public path = '/apis/auth';
+  public path = '/auth';
   public router = Router();
   public authController = new AuthController();
 

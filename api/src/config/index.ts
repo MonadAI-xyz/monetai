@@ -66,6 +66,15 @@ const cfg = {
       refreshToken: process.env.OAUTH_REFRESH_TOKEN,
     },
   },
+  ai: {
+    openai: {
+      apiKey: process.env.OPENAI_API_KEY,
+      model: process.env.OPENAI_MODEL || 'gpt-4',
+    },
+    deepseek: {
+      apiKey: process.env.DEEPSEEK_API_KEY,
+    }
+  }
 };
 
 export default cfg;

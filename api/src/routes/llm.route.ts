@@ -3,7 +3,7 @@ import LLMController from '@controllers/llm.controller';
 import Routes from '@interfaces/routes.interface';
 
 class LLMRoute implements Routes {
-  public path = '/apis/llms';
+  public path = '/llms';
   public router = Router();
   public llmController = new LLMController();
 
@@ -12,11 +12,7 @@ class LLMRoute implements Routes {
   }
 
   private initializeRoutes() {
-    // Add a test GET route
-    this.router.get(`${this.path}/test`, (req, res) => {
-      res.json({ message: 'LLM route working' });
-    });
-    
+    this.router.get(`${this.path}/test`, this.llmController.test);
     this.router.post(`${this.path}/decision`, this.llmController.getDecision);
   }
 }
