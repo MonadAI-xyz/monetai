@@ -34,10 +34,12 @@ smart-contracts/cache/
 smart-contracts/out/
 smart-contracts/broadcast/
 
-# Dependencies
-smart-contracts/lib/
-
 # Dotenv file
 smart-contracts/.env
+
+# Environment variables
+.env
+.env.*
+!.env.example
 
 
