@@ -23,44 +23,28 @@ export const allServices = {
 };
 
 class Services {
-  private static instance: Services;
-  public authService: AuthService;
-  public llmService: LLMService;
-  private static serviceInstances: IServiceInstances = {} as IServiceInstances;
+  private static instance: IServiceInstances = {} as IServiceInstances;
 
-  private constructor() {
-    this.authService = new AuthService();
-    this.llmService = new LLMService();
-    this.initialize();
-  }
-
-  public static getInstance(): Services {
-    if (!Services.instance) {
-      Services.instance = new Services();
+  public static getInstance(): IServiceInstances {
+    if (Object.keys(this.instance).length === 0) {
+      this.initialize();
     }
-    return Services.instance;
+    return this.instance;
   }
 
-  private initialize(): void {
+  private static initialize(): void {
     Object.entries(allServices).forEach(([key, ServiceClass]) => {
       const name = _.camelCase(key) as keyof IServiceInstances;
-      if (!Services.serviceInstances[name]) {
-        Services.serviceInstances[name] = new (ServiceClass as any)();
+      if (!this.instance[name]) {
+        this.instance[name] = new ServiceClass();
       }
     });
 
-    this.injectDependencies();
-  }
-
-  private injectDependencies(): void {
-    Object.entries(Services.serviceInstances).forEach(([serviceName, serviceInstance]) => {
+    Object.entries(this.instance).forEach(([serviceName, serviceInstance]) => {
       if (serviceInstance instanceof BaseService) {
-        const dependencies: Record<string, any> = {};
-        Object.keys(Services.serviceInstances).forEach(propName => {
-          if (propName !== serviceName) {
-            dependencies[propName] = Services.serviceInstances[propName as keyof IServiceInstances];
-          }
-        });
+        const dependencies = Object.fromEntries(
+          Object.entries(this.instance).filter(([key]) => key !== serviceName)
+        );
         serviceInstance.setDependencies(dependencies);
       }
     });
