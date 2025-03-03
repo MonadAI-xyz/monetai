@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console2} from "forge-std/Test.sol";
 import {MonetAI} from "../src/MonetAI.sol";
 import {MonetAIGovernor} from "../src/MonetAIGovernor.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -25,6 +25,7 @@ contract MonetAITest is Test {
     address public pauser;
     address public recipient;
     address public minter;
+    address public burner;
     address public user1;
     address public user2;
 
@@ -35,18 +36,22 @@ contract MonetAITest is Test {
         pauser = makeAddr("pauser");
         recipient = makeAddr("recipient");
         minter = makeAddr("minter");
+        burner = makeAddr("burner");
         user1 = makeAddr("user1");
         user2 = makeAddr("user2");
 
-        // Deploy contracts
-        token = new MonetAI(admin, pauser, recipient, minter);
+        // Deploy contracts as admin
+        vm.startPrank(admin);
+        token = new MonetAI(admin, pauser, recipient, minter, burner);
         governor = new MonetAIGovernor(token);
+        vm.stopPrank();
 
-        // Setup initial state
+        // Setup initial state as minter
         vm.startPrank(minter);
         token.mint(recipient, 10000000e18);
         vm.stopPrank();
 
+        // Setup delegation as recipient
         vm.startPrank(recipient);
         token.delegate(recipient);
         vm.stopPrank();
@@ -132,16 +137,33 @@ contract MonetAITest is Test {
      *************************************************************************/
     
     function test_Burning() public {
+        // First grant burn role to recipient
+        vm.startPrank(admin);
+        token.grantRole(token.BURNER_ROLE(), recipient);
+        vm.stopPrank();
+
         vm.startPrank(recipient);
         uint256 initialBalance = token.balanceOf(recipient);
+        uint256 burnAmount = 1000;
+
+        // Expect Transfer event from recipient to zero address
         vm.expectEmit(true, true, true, true);
-        emit Transfer(recipient, address(0), 1000);
-        token.burn(1000);
-        assertEq(token.balanceOf(recipient), initialBalance - 1000);
+        emit Transfer(recipient, address(0), burnAmount);
+        
+        // Call burn function
+        token.burn(burnAmount);
+        
+        // Verify balance change
+        assertEq(token.balanceOf(recipient), initialBalance - burnAmount);
         vm.stopPrank();
     }
 
     function test_BurningMoreThanBalance() public {
+        // First grant burn role to recipient
+        vm.startPrank(admin);
+        token.grantRole(token.BURNER_ROLE(), recipient);
+        vm.stopPrank();
+
         vm.startPrank(recipient);
         uint256 balance = token.balanceOf(recipient);
         vm.expectRevert();
