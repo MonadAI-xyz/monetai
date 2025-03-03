@@ -36,7 +36,7 @@ class Services {
     Object.entries(allServices).forEach(([key, ServiceClass]) => {
       const name = _.camelCase(key) as keyof IServiceInstances;
       if (!this.instance[name]) {
-        this.instance[name] = new ServiceClass();
+        this.instance[name] = new (ServiceClass as any)();
       }
     });
 
