@@ -1,5 +1,6 @@
 "use client";
 
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Link from 'next/link';
 import React from 'react';
 
@@ -47,7 +48,7 @@ const menuItems: INavigationMenuItem[] = [
 export default function Header() {
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-      <div className="flex items-center gap-2 px-4">
+      <div className="w-full flex items-center gap-2 px-4">
         <SidebarTrigger className="-ml-1" />
         <Separator
           className="mr-2 data-[orientation=vertical]:h-4"
@@ -66,6 +67,9 @@ export default function Header() {
             ))}
           </NavigationMenuList>
         </NavigationMenu>
+        <div className='ml-auto'>
+          <ConnectButton />
+        </div>
       </div>
     </header>
   )

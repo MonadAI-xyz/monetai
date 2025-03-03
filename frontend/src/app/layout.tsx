@@ -8,6 +8,7 @@ import { inter } from '@/fonts';
 import { cn } from '@/functions/cn';
 
 import '@/styles/main.css';
+import '@rainbow-me/rainbowkit/styles.css';
 
 export const viewport: Viewport = {
   themeColor: 'black',
