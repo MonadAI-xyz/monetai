@@ -8,14 +8,13 @@ import { HttpBadRequest } from '@exceptions/http/HttpBadRequest';
 
 class LLMService extends BaseService {
   private openai: OpenAI;
-  private marketDataService: MarketDataService;
+  private marketDataService: MarketDataService | null = null;
 
   constructor() {
     super();
     this.openai = new OpenAI({
       apiKey: config.ai.openai.apiKey,
     });
-    this.marketDataService = new MarketDataService();
   }
 
   public async getDecision(params?: Partial<MarketDataParams>) {
