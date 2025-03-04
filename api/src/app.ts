@@ -120,17 +120,17 @@ class App {
       }
     });
     routes.forEach(route => {
-      this.app.use('/api', route.router);
+      this.app.use('/apis', route.router);
     });
     if (adminRoutes?.length > 0) {
       adminRoutes.forEach(route => {
-        this.app.use('/api/admin/', namespaceMiddleware('ACCOUNTANT'), route.router);
+        this.app.use('/apis/admin/', namespaceMiddleware('ACCOUNTANT'), route.router);
       });
     }
   }
 
   private initializeSwagger() {
-    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swagger));
+    this.app.use('/apis-docs', swaggerUi.serve, swaggerUi.setup(swagger));
   }
 
   private initializeErrorHandling() {
