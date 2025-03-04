@@ -6,29 +6,22 @@ import Services from '@services/index';
 
 class AuthController {
   private authService = Services.getInstance()?.authService;
+  private readonly MESSAGE = "Welcome to MonetAI! Sign this message to login.";
 
-  public login = async (req: Request, res: Response, next: NextFunction) => {
-    const { email, password } = req.body;
-    let token: string = (req.headers['x-monetai-auth'] as string) || null;
+  public getMessage = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // call login services
-      let user: UserAttributes = null;
-      if (token) {
-        user = await this.authService.loginWithToken(token);
-      } else {
-        if (!email || !password) throw new HttpBadRequest();
-
-        user = await this.authService.login(email, password);
-
-        token = this.authService.createToken({
-          id: user.id,
-          email: user.email,
-        });
-      }
-
-      return responsePreparer(200, { token, user })(req, res, next);
+      return responsePreparer(200, { message: this.MESSAGE })(req, res, next);
     } catch (error) {
-      console.log('ERR', error);
+      next(error);
+    }
+  };
+
+  public verifySignature = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { walletAddress, signature } = req.body;
+      const result = await this.authService.verifySignature(walletAddress, signature);
+      return responsePreparer(200, result)(req, res, next);
+    } catch (error) {
       next(error);
     }
   };

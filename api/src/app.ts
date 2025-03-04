@@ -1,5 +1,3 @@
-import '@utils/sentry';
-
 import config from '@config';
 import Routes from '@interfaces/routes.interface';
 import { errorHandler } from '@middlewares/errorHandler.middleware';
@@ -19,10 +17,8 @@ import responseTime from 'response-time';
 import swaggerUi from 'swagger-ui-express';
 import swagger from './swagger';
 
-import * as Sentry from '@sentry/node';
-
 class App {
-  public app: any;
+  public app: express.Application;
   public expressWs: any;
   public port: number;
   public env: string;
@@ -138,15 +134,6 @@ class App {
   }
 
   private initializeErrorHandling() {
-    Sentry.setupExpressErrorHandler(this.app);
-    if (config.app.env === 'production' || config.app.env === 'staging') {
-      this.app.use(
-        Sentry.expressErrorHandler({
-          shouldHandleError: error => (error.status as number) >= 400,
-        }),
-      );
-    }
-
     this.app.use(successMiddleware);
     this.app.use(errorHandler);
   }
