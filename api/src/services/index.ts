@@ -25,14 +25,7 @@ export const allServices = {
 class Services {
   private static instance: IServiceInstances = {} as IServiceInstances;
 
-  public static getInstance(): IServiceInstances {
-    if (Object.keys(this.instance).length === 0) {
-      this.initialize();
-    }
-    return this.instance;
-  }
-
-  private static initialize(): void {
+  public static initialize(): void {
     Object.entries(allServices).forEach(([key, ServiceClass]) => {
       const name = _.camelCase(key) as keyof IServiceInstances;
       if (!this.instance[name]) {
@@ -40,15 +33,31 @@ class Services {
       }
     });
 
+    this.injectDependencies();
+  }
+
+  public static getInstance(): IServiceInstances {
+    if (Object.keys(this.instance).length === 0) {
+      this.initialize();
+    }
+    return this.instance;
+  }
+
+  private static injectDependencies(): void {
     Object.entries(this.instance).forEach(([serviceName, serviceInstance]) => {
       if (serviceInstance instanceof BaseService) {
-        const dependencies = Object.fromEntries(
-          Object.entries(this.instance).filter(([key]) => key !== serviceName)
-        );
+        const dependencies: Record<string, any> = {};
+        Object.keys(this.instance).forEach(propName => {
+          if (propName !== serviceName) {
+            dependencies[propName] = this.instance[propName as keyof IServiceInstances];
+          }
+        });
         serviceInstance.setDependencies(dependencies);
       }
     });
   }
 }
+
+Services.initialize();
 
 export default Services;
