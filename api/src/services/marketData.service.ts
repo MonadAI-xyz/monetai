@@ -29,14 +29,9 @@ export const TRADING_PAIRS = [
 ];
 
 class MarketDataService extends BaseService {
-  private readonly baseUrl: string;
-  private readonly apiKey: string;
 
-  constructor() {
-    super();
-    this.baseUrl = config.ai.stork.baseUrl;
-    this.apiKey = config.ai.stork.apiKey;
-  }
+  private readonly baseUrl = config.ai.stork.baseUrl;
+  private readonly apiKey = config.ai.stork.apiKey;
 
   public async getAllPairsData(params: Omit<MarketDataParams, 'symbol'>): Promise<Record<string, MarketDataResponse>> {
     const results: Record<string, MarketDataResponse> = {};
