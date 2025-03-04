@@ -73,7 +73,11 @@ const cfg = {
     },
     deepseek: {
       apiKey: process.env.DEEPSEEK_API_KEY,
-    }
+    },
+    stork: {
+      apiKey: process.env.STORK_API_KEY,
+      baseUrl: 'https://rest.jp.stork-oracle.network/v1',
+    },
   }
 };
 

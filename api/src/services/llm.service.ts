@@ -1,21 +1,24 @@
+import BaseService from '@services/baseService.service';
 import config from '@config';
 import { OpenAI } from 'openai';
 import { logger } from '@utils/logger';
-import MarketDataService, { MarketDataParams, TRADING_PAIRS } from './marketData.service';
+import MarketDataService, { MarketDataParams, MarketDataResponse } from './marketData.service';
 import { getTimeRanges, timestampToDate } from '@utils/time';
+import { HttpBadRequest } from '@exceptions/http/HttpBadRequest';
 
-class LLMService {
+class LLMService extends BaseService {
   private openai: OpenAI;
   private marketDataService: MarketDataService;
 
   constructor() {
+    super();
     this.openai = new OpenAI({
       apiKey: config.ai.openai.apiKey,
     });
     this.marketDataService = new MarketDataService();
   }
 
-  async getDecision(params?: Partial<MarketDataParams>) {
+  public async getDecision(params?: Partial<MarketDataParams>) {
     try {
       const timeRanges = getTimeRanges();
       const marketDataParams = {
@@ -25,74 +28,9 @@ class LLMService {
         symbol: 'BTCUSD' // Only analyze BTC/USD
       };
 
-      // Get data for single pair
       const data = await this.marketDataService.getMarketData(marketDataParams);
       const indicators = this.calculateIndicators(data);
-
-      // Optimize data for OpenAI
-      const optimizedData = {
-        price: indicators.price.current,
-        changes: indicators.price.changes,
-        technicals: {
-          sma: {
-            isAboveSMA20: indicators.technicals.sma.isAboveSMA20,
-            isAboveSMA50: indicators.technicals.sma.isAboveSMA50
-          },
-          rsi: indicators.technicals.rsi,
-          momentum: indicators.technicals.momentum,
-          volatility: indicators.technicals.volatility.daily,
-          support: indicators.technicals.levels.support,
-          resistance: indicators.technicals.levels.resistance
-        }
-      };
-
-      console.log(optimizedData);
-
-      const completion = await this.openai.chat.completions.create({
-        messages: [
-          {
-            role: "system",
-            content: `You are a BTC/USD trading advisor. Respond with ONLY raw JSON, no markdown or code blocks.`
-          },
-          {
-            role: "user",
-            content: `Based on this BTC/USD data, should we buy, sell, or wait?
-                     
-                     Data: ${JSON.stringify(optimizedData)}
-                     
-                     Return ONLY this JSON structure (no markdown, no code blocks):
-                     {
-                       "action": "BUY" | "SELL" | "WAIT",
-                       "reasoning": {
-                         "marketCondition": "brief state",
-                         "technicalAnalysis": "key factors",
-                         "riskAssessment": "risk level"
-                       }
-                     }`
-          }
-        ],
-        model: process.env.OPENAI_MODEL || "gpt-4",
-        temperature: 0.2,
-        max_tokens: 250
-      });
-
-      let decision;
-      try {
-        // Remove any markdown code blocks if present
-        const content = completion.choices[0].message.content.trim()
-          .replace(/^```json\n/, '')  // Remove opening code block
-          .replace(/\n```$/, '');     // Remove closing code block
-        
-        decision = JSON.parse(content);
-      } catch (error) {
-        logger.error({
-          message: 'Failed to parse OpenAI response',
-          content: completion.choices[0].message.content,
-          error: error.message,
-          labels: { origin: 'LLMService' }
-        });
-        throw new Error('Failed to parse AI response');
-      }
+      const decision = await this.getAIDecision(indicators);
 
       return {
         timestamp: new Date().toISOString(),
@@ -103,6 +41,66 @@ class LLMService {
     } catch (error) {
       logger.error({ message: `Error in LLM service: ${error.message}`, labels: { origin: 'LLMService' } });
       throw error;
+    }
+  }
+
+  private async getAIDecision(indicators: any) {
+    const optimizedData = {
+      price: indicators.price.current,
+      changes: indicators.price.changes,
+      technicals: {
+        sma: {
+          isAboveSMA20: indicators.technicals.sma.isAboveSMA20,
+          isAboveSMA50: indicators.technicals.sma.isAboveSMA50
+        },
+        rsi: indicators.technicals.rsi,
+        momentum: indicators.technicals.momentum,
+        volatility: indicators.technicals.volatility.daily,
+        support: indicators.technicals.levels.support,
+        resistance: indicators.technicals.levels.resistance
+      }
+    };
+
+    const completion = await this.openai.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: `You are a BTC/USD trading advisor. Respond with ONLY raw JSON, no markdown or code blocks.`
+        },
+        {
+          role: "user",
+          content: `Based on this BTC/USD data, should we buy, sell, or wait?
+                   Data: ${JSON.stringify(optimizedData)}
+                   Return ONLY this JSON structure (no markdown, no code blocks):
+                   {
+                     "action": "BUY" | "SELL" | "WAIT",
+                     "reasoning": {
+                       "marketCondition": "brief state",
+                       "technicalAnalysis": "key factors",
+                       "riskAssessment": "risk level"
+                     }
+                   }`
+        }
+      ],
+      model: process.env.OPENAI_MODEL || "gpt-4",
+      temperature: 0.2,
+      max_tokens: 250
+    });
+
+    try {
+      const content = completion.choices[0].message.content.trim()
+        .replace(/^```json\n/, '')
+        .replace(/\n```$/, '');
+      
+      return JSON.parse(content);
+    } catch (error) {
+      logger.error({
+        message: 'Failed to parse OpenAI response',
+        content: completion.choices[0].message.content,
+        error: error.message,
+        labels: { origin: 'LLMService' }
+      });
+      throw new HttpBadRequest('Failed to parse AI response');
     }
   }
 

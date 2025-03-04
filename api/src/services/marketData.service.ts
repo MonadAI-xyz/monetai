@@ -1,5 +1,8 @@
+import BaseService from '@services/baseService.service';
+import config from '@config';
 import axios from 'axios';
 import { logger } from '@utils/logger';
+import { HttpBadRequest } from '@exceptions/http/HttpBadRequest';
 
 export interface MarketDataParams {
   from: number;
@@ -25,15 +28,17 @@ export const TRADING_PAIRS = [
   'ADAUSD', 'SOLUSD', 'DOTUSD', 'MATICUSD', 'DOGEUSD'
 ];
 
-class MarketDataService {
-  private readonly baseUrl = 'https://rest.jp.stork-oracle.network/v1';
+class MarketDataService extends BaseService {
+  private readonly baseUrl: string;
   private readonly apiKey: string;
 
   constructor() {
-    this.apiKey = process.env.STORK_API_KEY;
+    super();
+    this.baseUrl = config.ai.stork.baseUrl;
+    this.apiKey = config.ai.stork.apiKey;
   }
 
-  async getAllPairsData(params: Omit<MarketDataParams, 'symbol'>): Promise<Record<string, MarketDataResponse>> {
+  public async getAllPairsData(params: Omit<MarketDataParams, 'symbol'>): Promise<Record<string, MarketDataResponse>> {
     const results: Record<string, MarketDataResponse> = {};
     
     await Promise.all(
@@ -41,48 +46,36 @@ class MarketDataService {
         try {
           const data = await this.getMarketData({ ...params, symbol });
           
-          // Check if response indicates an error
           if (data.s === 'error' || data.status === 'error') {
-            throw new Error(data.errmsg || 'API returned error status');
+            throw new HttpBadRequest(data.errmsg || 'API returned error status');
           }
           
-          // Store the data even if some fields are missing
           results[symbol] = data;
         } catch (error) {
           logger.error({ 
             message: `Error fetching market data for ${symbol}: ${error.message}`, 
             labels: { origin: 'MarketDataService' } 
           });
-          // Add empty but valid structure for failed requests
-          results[symbol] = {
-            s: "error",
-            t: [],
-            c: [],
-            o: [],
-            h: [],
-            l: [],
-            v: []
-          };
+          results[symbol] = this.getEmptyResponse();
         }
       })
     );
 
-    // Ensure we got at least some data
     const validPairs = Object.entries(results).filter(([_, data]) => 
       data.t && data.t.length > 0 && data.c && data.c.length > 0
     );
 
     if (validPairs.length === 0) {
-      throw new Error('Failed to fetch valid data for any trading pair');
+      throw new HttpBadRequest('Failed to fetch valid data for any trading pair');
     }
 
     return results;
   }
 
-  async getMarketData(params: MarketDataParams): Promise<MarketDataResponse> {
+  public async getMarketData(params: MarketDataParams): Promise<MarketDataResponse> {
     try {
       if (!this.apiKey) {
-        throw new Error('STORK_API_KEY is not configured');
+        throw new HttpBadRequest('Stork API key is not configured');
       }
 
       const response = await axios.get(`${this.baseUrl}/tradingview/history`, {
@@ -92,30 +85,11 @@ class MarketDataService {
         },
       });
 
-      // Log the raw response for debugging
-      logger.debug({ 
-        message: 'Raw API response',
-        data: response.data,
-        labels: { origin: 'MarketDataService' }
-      });
-
-      // Basic validation - just ensure we have timestamps
       if (!response.data || !response.data.t || !Array.isArray(response.data.t)) {
-        throw new Error(`Invalid response structure from API: missing timestamps`);
+        throw new HttpBadRequest('Invalid response structure from API');
       }
 
-      // Return all available data
-      return {
-        s: response.data.s,
-        t: response.data.t,
-        c: response.data.c || [],
-        o: response.data.o || [],
-        h: response.data.h || [],
-        l: response.data.l || [],
-        v: response.data.v || [],
-        status: response.data.status,
-        errmsg: response.data.errmsg
-      };
+      return this.formatResponse(response.data);
     } catch (error) {
       if (axios.isAxiosError(error)) {
         logger.error({ 
@@ -128,6 +102,32 @@ class MarketDataService {
       }
       throw error;
     }
+  }
+
+  private formatResponse(data: any): MarketDataResponse {
+    return {
+      s: data.s,
+      t: data.t,
+      c: data.c || [],
+      o: data.o || [],
+      h: data.h || [],
+      l: data.l || [],
+      v: data.v || [],
+      status: data.status,
+      errmsg: data.errmsg
+    };
+  }
+
+  private getEmptyResponse(): MarketDataResponse {
+    return {
+      s: "error",
+      t: [],
+      c: [],
+      o: [],
+      h: [],
+      l: [],
+      v: []
+    };
   }
 }
 
