@@ -66,9 +66,19 @@ const cfg = {
       refreshToken: process.env.OAUTH_REFRESH_TOKEN,
     },
   },
-  sentry: {
-    dns: process.env.SENTRY_DNS,
-  },
+  ai: {
+    openai: {
+      apiKey: process.env.OPENAI_API_KEY,
+      model: process.env.OPENAI_MODEL || 'gpt-4',
+    },
+    deepseek: {
+      apiKey: process.env.DEEPSEEK_API_KEY,
+    },
+    stork: {
+      apiKey: process.env.STORK_API_KEY,
+      baseUrl: 'https://rest.jp.stork-oracle.network/v1',
+    },
+  }
 };
 
 export default cfg;
