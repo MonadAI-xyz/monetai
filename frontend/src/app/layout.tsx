@@ -15,20 +15,23 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Your App Name | Home',
+  title: {
+    template: "%s | MonetAI",
+    default: "MonetAI",
+  },
   description: 'Your app description',
-  metadataBase: new URL('https://google.com'),
-  openGraph: {
-    title: 'Your App Name',
-    description: 'Your app description',
-    url: 'https://google.com',
-    siteName: 'Your App Name',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    site: '@username',
-    creator: '@username',
-  },
+  // metadataBase: new URL('https://google.com'),
+  // openGraph: {
+  //   title: 'Your App Name',
+  //   description: 'Your app description',
+  //   url: 'https://google.com',
+  //   siteName: 'Your App Name',
+  // },
+  // twitter: {
+  //   card: 'summary_large_image',
+  //   site: '@username',
+  //   creator: '@username',
+  // },
 };
 
 const GlobalLayout = ({ children }: PropsWithChildren) => {
