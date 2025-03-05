@@ -10,7 +10,7 @@
     "next:lint": "next lint",
     "lint": "pnpm run next:lint && eslint 'src/**/*.{js,jsx,ts,tsx}'",
     "prettier": "prettier --write 'src/**/*.{js,jsx,ts,tsx,scss}'",
-    "prepare": "husky install",
+    "prepare": "cd .. && husky install frontend/.husky",
     "check-types": "tsc",
     "validate": "pnpm run prettier & pnpm run lint & pnpm run check-types && pnpm run build"
   },
