@@ -78,6 +78,19 @@ const cfg = {
       apiKey: process.env.STORK_API_KEY,
       baseUrl: 'https://rest.jp.stork-oracle.network/v1',
     },
+  },
+  contracts: {
+    USDT: '0x88b8E2161DEDC77EF4ab7585569D2415a1C1055D',
+    WBTC: '0xcf5a6076cfa32686c0Df13aBaDa2b40dec133F1d',
+    PERMIT2: '0x000000000022D473030F116dDEE9F6B43aC78BA3'
+  },
+  zeroEx: {
+    apiKey: process.env.ZERO_EX_API_KEY,
+    baseUrl: 'https://api.0x.org'
+  },
+  chain: {
+    rpcUrl: process.env.RPC_URL,
+    privateKey: process.env.PRIVATE_KEY
   }
 };
 

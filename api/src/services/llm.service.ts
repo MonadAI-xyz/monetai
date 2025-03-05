@@ -5,10 +5,12 @@ import { logger } from '@utils/logger';
 import MarketDataService, { MarketDataParams, MarketDataResponse } from './marketData.service';
 import { getTimeRanges, timestampToDate } from '@utils/time';
 import { HttpBadRequest } from '@exceptions/http/HttpBadRequest';
+import { TradingService } from './trading.service';
 
 class LLMService extends BaseService {
   private openai: OpenAI;
   private marketDataService: MarketDataService | null = null;
+  private tradingService: TradingService | null = null;
 
   constructor() {
     super();
@@ -30,6 +32,11 @@ class LLMService extends BaseService {
       const data = await this.marketDataService.getMarketData(marketDataParams);
       const indicators = this.calculateIndicators(data);
       const decision = await this.getAIDecision(indicators);
+
+      // Execute trade if decision is BUY or SELL
+      if (decision.action === 'BUY' || decision.action === 'SELL') {
+        await this.handleTradeSignal(decision);
+      }
 
       return {
         timestamp: new Date().toISOString(),
@@ -286,6 +293,53 @@ class LLMService extends BaseService {
   private calculateMomentum(prices: number[], period = 14): number {
     if (prices.length < period) return 0;
     return ((prices[prices.length - 1] / prices[prices.length - 1 - period]) - 1) * 100;
+  }
+
+  async handleTradeSignal(decision: any) {
+    try {
+      if (!decision.action || !['BUY', 'SELL'].includes(decision.action)) {
+        logger.info('No trade action needed');
+        return null;
+      }
+
+      // Initialize trading service if not exists
+      if (!this.tradingService) {
+        this.tradingService = new TradingService();
+      }
+
+      const action = decision.action.toLowerCase() as 'buy' | 'sell';
+      
+      // Determine risk level from decision
+      const riskLevel = this.assessRiskLevel(decision.reasoning.riskAssessment);
+      
+      // Get dynamic amount based on balance and risk
+      const amount = await this.tradingService.calculateTradeAmount(action, riskLevel);
+
+      logger.info(`Executing ${action} trade with ${amount} (${riskLevel} risk)`);
+      return this.tradingService.executeSwap(action, amount);
+    } catch (error) {
+      logger.error({
+        message: `Error executing trade: ${error.message}`,
+        labels: { origin: 'LLMService.handleTradeSignal' }
+      });
+      throw error;
+    }
+  }
+
+  private assessRiskLevel(riskAssessment: string): 'HIGH' | 'LOW' {
+    // Convert risk assessment to lowercase for comparison
+    const assessment = riskAssessment.toLowerCase();
+    
+    // Check for high risk indicators
+    const highRiskTerms = ['high', 'volatile', 'unstable', 'risky', 'dangerous'];
+    
+    for (const term of highRiskTerms) {
+      if (assessment.includes(term)) {
+        return 'HIGH';
+      }
+    }
+    
+    return 'LOW';
   }
 }
 
