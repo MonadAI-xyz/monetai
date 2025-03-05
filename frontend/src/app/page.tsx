@@ -1,9 +1,8 @@
 // import { Metadata } from 'next';
 
-import { columns, Payment } from '@/app/components/payments/columns';
-import { DataTable } from '@/app/components/payments/data-table';
 // import { AppSidebar } from '@/components/app-sidebar';
 import Header from '@/components/header';
+import { columns, DataTable, Payment } from '@/components/ui/data-table';
 // import {
 //   SidebarInset,
 //   SidebarProvider,
