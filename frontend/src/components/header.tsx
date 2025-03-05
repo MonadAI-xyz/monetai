@@ -25,7 +25,7 @@ interface INavigationMenuItem {
 const menuItems: INavigationMenuItem[] = [
   {
     title: 'Dashboard',
-    href: '/dashboard',
+    href: '/',
   },
   {
     title: 'Trading',
