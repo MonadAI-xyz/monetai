@@ -1,3 +1,5 @@
+import { Metadata } from 'next';
+
 import { columns, Payment } from '@/app/components/payments/columns';
 import { DataTable } from '@/app/components/payments/data-table';
 import { AppSidebar } from '@/components/app-sidebar';
@@ -6,6 +8,10 @@ import {
   SidebarInset,
   SidebarProvider,
 } from '@/components/ui/sidebar';
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+};
 
 async function getData(): Promise<Payment[]> {
   // Generate 20 dummy Payment objects
