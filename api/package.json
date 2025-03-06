@@ -78,6 +78,7 @@
     "ts-jest": "^29.2.5",
     "uuid-parse": "^1.1.0",
     "uuidv4": "^6.2.13",
+    "viem": "^2.23.6",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0",
     "ws": "^8.18.0"

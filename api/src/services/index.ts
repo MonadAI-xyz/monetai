@@ -3,6 +3,7 @@ import AuthService from './auth.service';
 import UserService from './user.service';
 import LLMService from './llm.service';
 import MarketDataService from './marketData.service';
+import TradingService from './trading.service';
 
 import _ from 'lodash';
 
@@ -22,6 +23,7 @@ export const allServices = {
   UserService,
   LLMService,
   MarketDataService,
+  TradingService,
 };
 
 class Services {

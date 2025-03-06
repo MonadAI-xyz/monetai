@@ -5,16 +5,152 @@ import { logger } from '@utils/logger';
 import MarketDataService, { MarketDataParams, MarketDataResponse } from './marketData.service';
 import { getTimeRanges, timestampToDate } from '@utils/time';
 import { HttpBadRequest } from '@exceptions/http/HttpBadRequest';
+import TradingService from '@services/trading.service';
 
 class LLMService extends BaseService {
   private openai: OpenAI;
+  private deepseek: OpenAI;
   private marketDataService: MarketDataService | null = null;
+  private tradingService: TradingService | null = null;
 
   constructor() {
     super();
     this.openai = new OpenAI({
       apiKey: config.ai.openai.apiKey,
     });
+    
+    this.deepseek = new OpenAI({
+      baseURL: config.ai.deepseek.baseUrl,
+      apiKey: config.ai.deepseek.apiKey
+    });
+  }
+
+  private async getCollectiveDecision(indicators: any): Promise<any> {
+    const [gptResult, deepseekResult] = await Promise.allSettled([
+      this.getModelDecision(this.openai, config.ai.openai.model, indicators),
+      this.getModelDecision(this.deepseek, config.ai.deepseek.model, indicators)
+    ]);
+
+    // Handle different scenarios
+    if (gptResult.status === 'rejected' && deepseekResult.status === 'rejected') {
+      logger.error({
+        message: 'Both AI models failed to respond',
+        labels: { origin: 'LLMService' }
+      });
+      throw new Error('No AI models available for decision making');
+    }
+
+    // If one model fails, use the other one
+    if (gptResult.status === 'rejected') {
+      const decision = deepseekResult.value;
+      return {
+        ...decision,
+        reasoning: {
+          ...decision.reasoning,
+          marketCondition: `DeepSeek Only: ${decision.reasoning.marketCondition}`,
+        },
+        confidence: 'MEDIUM'
+      };
+    }
+
+    if (deepseekResult.status === 'rejected') {
+      const decision = gptResult.value;
+      return {
+        ...decision,
+        reasoning: {
+          ...decision.reasoning,
+          marketCondition: `GPT Only: ${decision.reasoning.marketCondition}`,
+        },
+        confidence: 'MEDIUM'
+      };
+    }
+
+    // Both models responded successfully
+    const gptDecision = gptResult.value;
+    const deepseekDecision = deepseekResult.value;
+
+    // If both agree, use that decision
+    if (gptDecision.action === deepseekDecision.action) {
+      return {
+        action: gptDecision.action,
+        reasoning: {
+          marketCondition: `GPT & DeepSeek Agree: ${gptDecision.reasoning.marketCondition}`,
+          technicalAnalysis: `Consensus: ${gptDecision.reasoning.technicalAnalysis}`,
+          riskAssessment: this.combineRiskAssessments(
+            gptDecision.reasoning.riskAssessment,
+            deepseekDecision.reasoning.riskAssessment
+          )
+        },
+        confidence: 'HIGH'
+      };
+    }
+
+    // If they disagree, default to more conservative action
+    return {
+      action: 'WAIT',
+      reasoning: {
+        marketCondition: 'Mixed signals between GPT and DeepSeek',
+        technicalAnalysis: `GPT suggests ${gptDecision.action}, DeepSeek suggests ${deepseekDecision.action}`,
+        riskAssessment: 'HIGH due to model disagreement'
+      },
+      confidence: 'LOW'
+    };
+  }
+
+  private async getModelDecision(client: OpenAI, model: string, indicators: any) {
+    const completion = await client.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: `You are a BTC/USD trading advisor. Respond with ONLY raw JSON, no markdown or code blocks.`
+        },
+        {
+          role: "user",
+          content: `Based on this BTC/USD data, should we buy, sell, or wait?
+                   Data: ${JSON.stringify(indicators)}
+                   Return ONLY this JSON structure (no markdown, no code blocks):
+                   {
+                     "action": "BUY" | "SELL" | "WAIT",
+                     "reasoning": {
+                       "marketCondition": "brief state",
+                       "technicalAnalysis": "key factors",
+                       "riskAssessment": "risk level"
+                     }
+                   }`
+        }
+      ],
+      model: model,
+      temperature: 0.2,
+      max_tokens: 250
+    });
+
+    try {
+      const content = completion.choices[0].message.content.trim()
+        .replace(/^```json\n/, '')
+        .replace(/\n```$/, '');
+      
+      return JSON.parse(content);
+    } catch (error) {
+      logger.error({
+        message: 'Failed to parse model response',
+        model,
+        content: completion.choices[0].message.content,
+        error: error.message,
+        labels: { origin: 'LLMService' }
+      });
+      throw new HttpBadRequest(`Failed to parse ${model} response`);
+    }
+  }
+
+  private combineRiskAssessments(gptRisk: string, deepseekRisk: string): string {
+    const isHighRisk = (risk: string) => 
+      risk.toLowerCase().includes('high') || 
+      risk.toLowerCase().includes('volatile');
+
+    if (isHighRisk(gptRisk) || isHighRisk(deepseekRisk)) {
+      return 'HIGH';
+    }
+    return 'LOW';
   }
 
   public async getDecision(params?: Partial<MarketDataParams>) {
@@ -29,7 +165,12 @@ class LLMService extends BaseService {
 
       const data = await this.marketDataService.getMarketData(marketDataParams);
       const indicators = this.calculateIndicators(data);
-      const decision = await this.getAIDecision(indicators);
+      const decision = await this.getCollectiveDecision(indicators);
+
+      // Execute trade if decision is BUY or SELL
+      if (decision.action === 'BUY' || decision.action === 'SELL') {
+        await this.handleTradeSignal(decision);
+      }
 
       return {
         timestamp: new Date().toISOString(),
@@ -40,66 +181,6 @@ class LLMService extends BaseService {
     } catch (error) {
       logger.error({ message: `Error in LLM service: ${error.message}`, labels: { origin: 'LLMService' } });
       throw error;
-    }
-  }
-
-  private async getAIDecision(indicators: any) {
-    const optimizedData = {
-      price: indicators.price.current,
-      changes: indicators.price.changes,
-      technicals: {
-        sma: {
-          isAboveSMA20: indicators.technicals.sma.isAboveSMA20,
-          isAboveSMA50: indicators.technicals.sma.isAboveSMA50
-        },
-        rsi: indicators.technicals.rsi,
-        momentum: indicators.technicals.momentum,
-        volatility: indicators.technicals.volatility.daily,
-        support: indicators.technicals.levels.support,
-        resistance: indicators.technicals.levels.resistance
-      }
-    };
-
-    const completion = await this.openai.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content: `You are a BTC/USD trading advisor. Respond with ONLY raw JSON, no markdown or code blocks.`
-        },
-        {
-          role: "user",
-          content: `Based on this BTC/USD data, should we buy, sell, or wait?
-                   Data: ${JSON.stringify(optimizedData)}
-                   Return ONLY this JSON structure (no markdown, no code blocks):
-                   {
-                     "action": "BUY" | "SELL" | "WAIT",
-                     "reasoning": {
-                       "marketCondition": "brief state",
-                       "technicalAnalysis": "key factors",
-                       "riskAssessment": "risk level"
-                     }
-                   }`
-        }
-      ],
-      model: process.env.OPENAI_MODEL || "gpt-4",
-      temperature: 0.2,
-      max_tokens: 250
-    });
-
-    try {
-      const content = completion.choices[0].message.content.trim()
-        .replace(/^```json\n/, '')
-        .replace(/\n```$/, '');
-      
-      return JSON.parse(content);
-    } catch (error) {
-      logger.error({
-        message: 'Failed to parse OpenAI response',
-        content: completion.choices[0].message.content,
-        error: error.message,
-        labels: { origin: 'LLMService' }
-      });
-      throw new HttpBadRequest('Failed to parse AI response');
     }
   }
 
@@ -286,6 +367,72 @@ class LLMService extends BaseService {
   private calculateMomentum(prices: number[], period = 14): number {
     if (prices.length < period) return 0;
     return ((prices[prices.length - 1] / prices[prices.length - 1 - period]) - 1) * 100;
+  }
+
+  async handleTradeSignal(decision: any) {
+    try {
+      if (!decision.action || !['BUY', 'SELL'].includes(decision.action)) {
+        logger.info('No trade action needed');
+        return null;
+      }
+
+      const action = decision.action.toLowerCase() as 'buy' | 'sell';
+      
+      // Check if trade is viable before proceeding
+      const viability = await this.tradingService.checkTradeViability(action);
+      if (!viability.viable) {
+        logger.warn({
+          message: 'Trade not viable',
+          reason: viability.reason,
+          balance: viability.balance,
+          token: viability.token,
+          action,
+          labels: { origin: 'LLMService' }
+        });
+        return null;
+      }
+
+      const riskLevel = this.assessRiskLevel(decision.reasoning.riskAssessment);
+      
+      try {
+        const amount = await this.tradingService.calculateTradeAmount(action, riskLevel);
+        logger.info(`Executing ${action} trade with ${amount} (${riskLevel} risk)`);
+        return this.tradingService.executeSwap(action, amount);
+      } catch (error) {
+        if (error.message.includes('Insufficient balance')) {
+          logger.warn({
+            message: 'Skipping trade due to insufficient balance',
+            action,
+            error: error.message,
+            labels: { origin: 'LLMService' }
+          });
+          return null;
+        }
+        throw error;
+      }
+    } catch (error) {
+      logger.error({
+        message: `Error executing trade: ${error.message}`,
+        labels: { origin: 'LLMService.handleTradeSignal' }
+      });
+      throw error;
+    }
+  }
+
+  private assessRiskLevel(riskAssessment: string): 'HIGH' | 'LOW' {
+    // Convert risk assessment to lowercase for comparison
+    const assessment = riskAssessment.toLowerCase();
+    
+    // Check for high risk indicators
+    const highRiskTerms = ['high', 'volatile', 'unstable', 'risky', 'dangerous'];
+    
+    for (const term of highRiskTerms) {
+      if (assessment.includes(term)) {
+        return 'HIGH';
+      }
+    }
+    
+    return 'LOW';
   }
 }
 

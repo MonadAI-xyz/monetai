@@ -11,42 +11,19 @@
     ],
     "baseUrl": "./src",
     "paths": {
-      "@database": [
-        "database"
-      ],
-      "@models": [
-        "database/models"
-      ],
-      "@services/*": [
-        "services/*"
-      ],
-      "@controllers/*": [
-        "controllers/*"
-      ],
-      "@routes/*": [
-        "routes/*"
-      ],
-      "@middlewares/*": [
-        "middlewares/*"
-      ],
-      "@interfaces/*": [
-        "interfaces/*"
-      ],
-      "@dtos/*": [
-        "dtos/*"
-      ],
-      "@utils/*": [
-        "utils/*"
-      ],
-      "@config": [
-        "config"
-      ],
-      "@exceptions/*": [
-        "exceptions/*"
-      ],
-      "@tests/*": [
-        "tests/*"
-      ]
+      "@/*": ["./*"],
+      "@routes/*": ["routes/*"],
+      "@utils/*": ["utils/*"],
+      "@config": ["config"],
+      "@services/*": ["services/*"],
+      "@controllers/*": ["controllers/*"],
+      "@middlewares/*": ["middlewares/*"],
+      "@interfaces/*": ["interfaces/*"],
+      "@dtos/*": ["dtos/*"],
+      "@exceptions/*": ["exceptions/*"],
+      "@database": ["database"],
+      "@models": ["database/models"],
+      "@tests/*": ["tests/*"]
     },
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
