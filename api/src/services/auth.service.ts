@@ -1,18 +1,14 @@
 import config from '@config';
-import { HttpBadRequest } from '@exceptions/http/HttpBadRequest';
-import { HttpNotFound } from '@exceptions/http/HttpNotFound';
 import jwt from 'jsonwebtoken';
 import BaseService from '@services/baseService.service';
-import UserService from '@services/user.service';
 import { User } from '@models';
 import { ethers } from 'ethers';
 import { HttpUnauthorized } from '@exceptions/http/HttpUnauthorized';
-import { v4 as uuidv4 } from 'uuid';
+
 const { secret, validMins } = config.auth;
 
 class AuthService extends BaseService {
-  private userService: UserService | null = null;
-  private readonly MESSAGE = "Welcome to MonetAI! Sign this message to login.";
+  private readonly MESSAGE = 'Welcome to MonetAI! Sign this message to login.';
 
   /**
    * Generates a JWT token for the given user.
@@ -31,10 +27,10 @@ class AuthService extends BaseService {
       const signerAddr = await ethers.utils.verifyMessage(this.MESSAGE, signature);
       console.log('signerAddr', signerAddr);
       console.log('walletAddress', walletAddress);
-      
+
       const normalizedSignerAddr = signerAddr.toLowerCase();
       const normalizedWalletAddr = walletAddress.toLowerCase();
-      
+
       console.log('normalizedSignerAddr', normalizedSignerAddr);
       console.log('normalizedWalletAddr', normalizedWalletAddr);
       console.log('addresses match:', normalizedSignerAddr === normalizedWalletAddr);
@@ -47,22 +43,19 @@ class AuthService extends BaseService {
         // Use User model directly instead of db.users
         const [user] = await User.findOrCreate({
           where: { wallet_address: normalizedWalletAddr },
-          defaults: { wallet_address: normalizedWalletAddr }
+          defaults: { wallet_address: normalizedWalletAddr },
         });
 
         const token = this.createToken({
           id: user.id,
-          wallet_address: user.wallet_address
+          wallet_address: user.wallet_address,
         });
 
-        const result = { token, user };
-        return result;
-
+        return { token, user };
       } catch (dbError) {
         console.error('Database error:', dbError);
         throw new Error('Failed to create user or token');
       }
-
     } catch (error) {
       console.error('Verification error:', error);
       if (error instanceof HttpUnauthorized) {

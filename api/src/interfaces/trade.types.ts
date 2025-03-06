@@ -1,5 +1,6 @@
 export interface TradeLog {
-  timestamp: string;
+  timestamp: Date;
+  pair: string;
   action: 'BUY' | 'SELL';
   tokenIn: string;
   tokenOut: string;
@@ -8,4 +9,5 @@ export interface TradeLog {
   txHash: string;
   status: 'PENDING' | 'COMPLETED' | 'FAILED';
   error?: string;
-} 
+  decisionId?: string;
+}

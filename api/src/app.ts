@@ -18,7 +18,7 @@ import swaggerUi from 'swagger-ui-express';
 import swagger from './swagger';
 
 class App {
-  public app: express.Application;
+  public app: express.Application & { ws: any };
   public expressWs: any;
   public port: number;
   public env: string;

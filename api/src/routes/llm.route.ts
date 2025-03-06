@@ -13,8 +13,9 @@ class LLMRoute implements Routes {
 
   private initializeRoutes() {
     this.router.get(`${this.path}/test`, this.llmController.test);
-    this.router.post(`${this.path}/decision`, this.llmController.getDecision);
+    this.router.post(`${this.path}/decisions`, this.llmController.makeDecision);
+    this.router.get(`${this.path}/decisions`, this.llmController.getDecisions);
   }
 }
 
-export default LLMRoute; 
+export default LLMRoute;

@@ -1,7 +1,7 @@
 import BaseService from './baseService.service'; // Import all services
 import AuthService from './auth.service';
 import UserService from './user.service';
-import LLMService from './llm.service';
+import LlmService from './llm.service';
 import MarketDataService from './marketData.service';
 import TradingService from './trading.service';
 
@@ -21,7 +21,7 @@ export type IServiceInstances = ServiceInstances<typeof allServices>;
 export const allServices = {
   AuthService,
   UserService,
-  LLMService,
+  LlmService,
   MarketDataService,
   TradingService,
 };

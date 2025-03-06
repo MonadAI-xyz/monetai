@@ -1,29 +1,20 @@
 import BaseService from '@services/baseService.service';
-import {
-  createWalletClient,
-  http,
-  getContract,
-  erc20Abi,
-  parseUnits,
-  publicActions,
-  numberToHex,
-  size,
-  concat,
-  type Hex,
-  formatUnits
-} from 'viem';
+import { concat, createWalletClient, erc20Abi, formatUnits, getContract, type Hex, http, numberToHex, parseUnits, publicActions, size } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { monadTestnet } from 'viem/chains';
 import config from '@config';
-import { TradeLog } from '@/types/trade.types';
+import { TradeLog } from '@interfaces/trade.types';
 import { logger } from '@utils/logger';
+import { HttpError } from '@exceptions/http/HttpError';
+import { sequelizeQueryBuilder } from '@utils/utils';
+import { TradingHistory } from '@models';
 
 class TradingService extends BaseService {
   private client;
   private headers;
 
   constructor() {
-    super();
+    super(TradingHistory);
     if (!config.chain.privateKey) throw new Error('missing PRIVATE_KEY');
     if (!config.zeroEx.apiKey) throw new Error('missing ZERO_EX_API_KEY');
     if (!config.chain.rpcUrl) throw new Error('missing RPC_URL');
@@ -31,55 +22,55 @@ class TradingService extends BaseService {
     this.client = createWalletClient({
       account: privateKeyToAccount(`0x${config.chain.privateKey}` as `0x${string}`),
       chain: monadTestnet,
-      transport: http(config.chain.rpcUrl)
+      transport: http(config.chain.rpcUrl),
     }).extend(publicActions);
 
     this.headers = new Headers({
       'Content-Type': 'application/json',
       '0x-api-key': config.zeroEx.apiKey,
       '0x-chain-id': this.client.chain.id.toString(),
-      '0x-version': 'v2'
+      '0x-version': 'v2',
     });
   }
 
-  async executeSwap(action: 'buy' | 'sell', amount: string) {
-    const [sellToken, buyToken] = action === 'buy' 
-      ? [config.contracts.USDT, config.contracts.WBTC]
-      : [config.contracts.WBTC, config.contracts.USDT];
+  async executeSwap(action: 'buy' | 'sell', pair: string, amount: string, decision: any) {
+    const [sellToken, buyToken] = action === 'buy' ? [config.contracts.USDT, config.contracts.WBTC] : [config.contracts.WBTC, config.contracts.USDT];
 
     // Check balances first
     const balance = await this.getTokenBalance(sellToken);
     const tokenContract = getContract({
       address: sellToken,
       abi: erc20Abi,
-      client: this.client
+      client: this.client,
     });
-    
+
     const decimals = await tokenContract.read.decimals();
     const sellAmount = parseUnits(amount, decimals);
 
     if (balance < sellAmount) {
       const formattedBalance = formatUnits(balance, decimals);
       logger.error({
-        message: `Insufficient balance for trade`,
+        message: `Insufficient balance for trade [${pair}]`,
         balance: formattedBalance,
         required: amount,
         token: sellToken,
-        labels: { origin: 'TradingService' }
+        labels: { origin: 'TradingService' },
       });
       throw new Error(`Insufficient balance. Have: ${formattedBalance}, Need: ${amount}`);
     }
 
     // Create trade log entry
     const tradeLog: TradeLog = {
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(),
+      pair,
       action: action.toUpperCase() as 'BUY' | 'SELL',
       tokenIn: sellToken,
       tokenOut: buyToken,
       amountIn: amount,
       expectedAmountOut: '0', // Will be updated with quote
       txHash: '',
-      status: 'PENDING'
+      status: 'PENDING',
+      decisionId: decision?.id || null,
     };
 
     try {
@@ -88,7 +79,7 @@ class TradingService extends BaseService {
 
       // Get price quote
       const quote = await this.getQuote(sellToken, buyToken, sellAmount);
-      
+
       if (!quote.liquidityAvailable) {
         tradeLog.status = 'FAILED';
         tradeLog.error = 'No liquidity available';
@@ -97,14 +88,11 @@ class TradingService extends BaseService {
       }
 
       // Update expected amount
-      tradeLog.expectedAmountOut = formatUnits(
-        BigInt(quote.buyAmount), 
-        await this.getTokenDecimals(buyToken)
-      );
+      tradeLog.expectedAmountOut = formatUnits(BigInt(quote.buyAmount), await this.getTokenDecimals(buyToken));
 
       // Execute the swap
       const receipt = await this.executeTransaction(quote);
-      
+
       // Update trade log with success
       tradeLog.status = 'COMPLETED';
       tradeLog.txHash = receipt.transactionHash;
@@ -122,10 +110,7 @@ class TradingService extends BaseService {
 
   private async handleAllowance(contract: any, amount: bigint) {
     const spender = config.contracts.PERMIT2;
-    const currentAllowance = await contract.read.allowance([
-      this.client.account.address,
-      spender
-    ]);
+    const currentAllowance = await contract.read.allowance([this.client.account.address, spender]);
 
     if (currentAllowance < amount) {
       const hash = await contract.write.approve([spender, amount]);
@@ -139,13 +124,10 @@ class TradingService extends BaseService {
       sellToken,
       buyToken,
       sellAmount: sellAmount.toString(),
-      taker: this.client.account.address
+      taker: this.client.account.address,
     });
 
-    const response = await fetch(
-      `${config.zeroEx.baseUrl}/swap/permit2/quote?${params}`,
-      { headers: this.headers }
-    );
+    const response = await fetch(`${config.zeroEx.baseUrl}/swap/permit2/quote?${params}`, { headers: this.headers });
 
     if (!response.ok) {
       throw new Error('Failed to get quote');
@@ -156,18 +138,14 @@ class TradingService extends BaseService {
 
   private async executeTransaction(quote: any) {
     const signature = await this.client.signTypedData(quote.permit2.eip712);
-    
+
     const signatureLengthInHex = numberToHex(size(signature), {
       signed: false,
-      size: 32
+      size: 32,
     }) as Hex;
 
     const transactionData = quote.transaction.data as Hex;
-    quote.transaction.data = concat([
-      transactionData,
-      signatureLengthInHex,
-      signature as Hex
-    ]);
+    quote.transaction.data = concat([transactionData, signatureLengthInHex, signature as Hex]);
 
     const hash = await this.client.sendTransaction({
       account: this.client.account,
@@ -176,7 +154,7 @@ class TradingService extends BaseService {
       data: quote.transaction.data,
       value: BigInt(quote.transaction.value || 0),
       gas: quote.gas ? BigInt(quote.gas) : undefined,
-      gasPrice: quote.gasPrice ? BigInt(quote.gasPrice) : undefined
+      gasPrice: quote.gasPrice ? BigInt(quote.gasPrice) : undefined,
     });
 
     return this.client.waitForTransactionReceipt({ hash });
@@ -186,29 +164,28 @@ class TradingService extends BaseService {
     const tokenContract = getContract({
       address: tokenAddress,
       abi: erc20Abi,
-      client: this.client
+      client: this.client,
     });
 
-    const balance = await tokenContract.read.balanceOf([this.client.account.address]);
-    return balance;
+    return await tokenContract.read.balanceOf([this.client.account.address]);
   }
 
   async calculateTradeAmount(action: 'buy' | 'sell', riskLevel: 'HIGH' | 'LOW'): Promise<string> {
     const tokenAddress = action === 'buy' ? config.contracts.USDT : config.contracts.WBTC;
     const balance = await this.getTokenBalance(tokenAddress);
-    
+
     const tokenContract = getContract({
       address: tokenAddress,
       abi: erc20Abi,
-      client: this.client
+      client: this.client,
     });
-    
+
     const decimals = await tokenContract.read.decimals();
     const percentage = riskLevel === 'HIGH' ? 0.05 : 0.1; // 5% for high risk, 10% for low risk
-    
+
     // Calculate trade amount based on percentage of balance
     const tradeAmount = (balance * BigInt(Math.floor(percentage * 100))) / BigInt(100);
-    
+
     // Convert from raw amount to decimal string
     return formatUnits(tradeAmount, decimals);
   }
@@ -217,20 +194,20 @@ class TradingService extends BaseService {
     const contract = getContract({
       address: tokenAddress,
       abi: erc20Abi,
-      client: this.client
+      client: this.client,
     });
     return contract.read.decimals();
   }
 
-  private async logTrade(tradeLog: TradeLog) {
+  private async logTrade(tradeLog: TradeLog): Promise<void> {
+    const message = 'Trade Execution';
     logger.info({
-      message: 'Trade Execution',
+      message,
       trade: tradeLog,
-      labels: { origin: 'TradingService', type: 'TRADE_LOG' }
+      labels: { origin: 'TradingService', type: 'TRADE_LOG' },
     });
-    
-    // Here you could also save to database if needed
-    // await this.db.trades.create(tradeLog);
+
+    await TradingHistory.create({ ...tradeLog, message });
   }
 
   async checkTradeViability(action: 'buy' | 'sell'): Promise<{
@@ -241,25 +218,25 @@ class TradingService extends BaseService {
   }> {
     const tokenAddress = action === 'buy' ? config.contracts.USDT : config.contracts.WBTC;
     const balance = await this.getTokenBalance(tokenAddress);
-    
+
     const tokenContract = getContract({
       address: tokenAddress,
       abi: erc20Abi,
-      client: this.client
+      client: this.client,
     });
-    
+
     const decimals = await tokenContract.read.decimals();
     const formattedBalance = formatUnits(balance, decimals);
-    
+
     // Consider minimum viable amounts (e.g., 1 USDT or 0.0001 WBTC)
     const minAmount = action === 'buy' ? '1' : '0.0001';
-    
+
     if (balance === BigInt(0)) {
       return {
         viable: false,
         balance: '0',
         token: tokenAddress,
-        reason: `No ${action === 'buy' ? 'USDT' : 'WBTC'} balance available for trade`
+        reason: `No ${action === 'buy' ? 'USDT' : 'WBTC'} balance available for trade`,
       };
     }
 
@@ -268,16 +245,49 @@ class TradingService extends BaseService {
         viable: false,
         balance: formattedBalance,
         token: tokenAddress,
-        reason: `Balance too low for trade. Minimum required: ${minAmount}`
+        reason: `Balance too low for trade. Minimum required: ${minAmount}`,
       };
     }
 
     return {
       viable: true,
       balance: formattedBalance,
-      token: tokenAddress
+      token: tokenAddress,
     };
   }
+
+  /**
+   * Retrieves trading history
+   *
+   * @param {any} options - Search and pagination options
+   * @returns {Promise<TradingHistory>} - TradingHistory.
+   * @throws {HttpError} - Error if something goes wrong
+   */
+  public getTradingHistory = async (
+    options: any,
+  ): Promise<{
+    count: number;
+    rows: TradingHistory[];
+  }> => {
+    try {
+      const search = sequelizeQueryBuilder(options, ['pair']);
+      return await this.model.findAndCountAll({
+        ...search,
+        include: [
+          {
+            association: 'decision',
+          },
+        ],
+        order: [['createdAt', 'DESC']],
+      });
+    } catch (error) {
+      console.error('Error retrieving data:', error);
+      throw new HttpError({
+        message: 'Can not retrieve trading logs',
+        errors: error,
+      });
+    }
+  };
 }
 
-export default TradingService; 
+export default TradingService;

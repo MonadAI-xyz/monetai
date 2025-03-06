@@ -5,19 +5,29 @@ import { MarketDataParams } from '@services/marketData.service';
 
 class LLMController {
   private llmService = Services.getInstance()?.llmService;
-  private readonly MESSAGE = "AI Decision Making Service";
+  private tradingService = Services.getInstance()?.tradingService;
+  private readonly MESSAGE = 'AI Decision Making Service';
 
-  public getDecision = async (req: Request, res: Response, next: NextFunction) => {
+  public makeDecision = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const params: Partial<MarketDataParams> = {
         from: req.body.from,
         to: req.body.to,
         resolution: req.body.resolution,
-        symbol: req.body.symbol
+        symbol: req.body.symbol,
       };
-      
-      const result = await this.llmService.getDecision(params);
+
+      const result = await this.llmService.makeDecision(params);
       return responsePreparer(200, result)(req, res, next);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public getDecisions = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const decisions = await this.tradingService.getTradingHistory(req.params);
+      return responsePreparer(200, decisions)(req, res, next);
     } catch (error) {
       next(error);
     }
@@ -32,4 +42,4 @@ class LLMController {
   };
 }
 
-export default LLMController; 
+export default LLMController;
