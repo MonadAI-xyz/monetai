@@ -1,5 +1,6 @@
 "use client";
 
+import { getMessage } from '@/lib/actions';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import React, { useState } from 'react'
 import { useAccountEffect, useSignMessage } from 'wagmi';
@@ -9,19 +10,19 @@ export const ConnectWalletButton = () => {
   const [signature, setSignature] = useState<`0x${string}` | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // TODO - move all wallets logic to a `/components/wallet/` folder
   // Listening to wallet account lifecycle events
   useAccountEffect({
     // config,
-    onConnect: ({ address }) => {
+    onConnect: async ({ address }) => {
       console.log('Account Connected!', address);
       if (!address) return;
 
-      // User's wallet data
-      // const { address } = data;
+      // Fetch message from API endpoint
+      const reposnse = await getMessage();
+      console.log({ getMessage: reposnse });
 
-      // TODO - fetch message from API endpoint
-      const message = "Sign in to continue";
+      // Get the message string
+      const { message } = reposnse.data;
 
       // Sign the message
       signMessage(
