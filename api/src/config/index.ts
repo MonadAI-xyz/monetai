@@ -73,6 +73,8 @@ const cfg = {
     },
     deepseek: {
       apiKey: process.env.DEEPSEEK_API_KEY,
+      baseUrl: 'https://api.deepseek.com',
+      model: 'deepseek-chat'
     },
     stork: {
       apiKey: process.env.STORK_API_KEY,

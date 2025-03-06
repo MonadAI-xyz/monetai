@@ -1,3 +1,4 @@
+import BaseService from '@services/baseService.service';
 import {
   createWalletClient,
   http,
@@ -14,12 +15,15 @@ import {
 import { privateKeyToAccount } from 'viem/accounts';
 import { monadTestnet } from 'viem/chains';
 import config from '@config';
+import { TradeLog } from '@/types/trade.types';
+import { logger } from '@utils/logger';
 
-export class TradingService {
+class TradingService extends BaseService {
   private client;
   private headers;
 
   constructor() {
+    super();
     if (!config.chain.privateKey) throw new Error('missing PRIVATE_KEY');
     if (!config.zeroEx.apiKey) throw new Error('missing ZERO_EX_API_KEY');
     if (!config.chain.rpcUrl) throw new Error('missing RPC_URL');
@@ -43,27 +47,77 @@ export class TradingService {
       ? [config.contracts.USDT, config.contracts.WBTC]
       : [config.contracts.WBTC, config.contracts.USDT];
 
+    // Check balances first
+    const balance = await this.getTokenBalance(sellToken);
     const tokenContract = getContract({
       address: sellToken,
       abi: erc20Abi,
       client: this.client
     });
-
+    
     const decimals = await tokenContract.read.decimals();
     const sellAmount = parseUnits(amount, decimals);
 
-    // Check and handle allowance
-    await this.handleAllowance(tokenContract, sellAmount);
-
-    // Get price quote
-    const quote = await this.getQuote(sellToken, buyToken, sellAmount);
-    
-    if (!quote.liquidityAvailable) {
-      throw new Error('No liquidity available for this swap');
+    if (balance < sellAmount) {
+      const formattedBalance = formatUnits(balance, decimals);
+      logger.error({
+        message: `Insufficient balance for trade`,
+        balance: formattedBalance,
+        required: amount,
+        token: sellToken,
+        labels: { origin: 'TradingService' }
+      });
+      throw new Error(`Insufficient balance. Have: ${formattedBalance}, Need: ${amount}`);
     }
 
-    // Execute the swap
-    return this.executeTransaction(quote);
+    // Create trade log entry
+    const tradeLog: TradeLog = {
+      timestamp: new Date().toISOString(),
+      action: action.toUpperCase() as 'BUY' | 'SELL',
+      tokenIn: sellToken,
+      tokenOut: buyToken,
+      amountIn: amount,
+      expectedAmountOut: '0', // Will be updated with quote
+      txHash: '',
+      status: 'PENDING'
+    };
+
+    try {
+      // Check and handle allowance
+      await this.handleAllowance(tokenContract, sellAmount);
+
+      // Get price quote
+      const quote = await this.getQuote(sellToken, buyToken, sellAmount);
+      
+      if (!quote.liquidityAvailable) {
+        tradeLog.status = 'FAILED';
+        tradeLog.error = 'No liquidity available';
+        await this.logTrade(tradeLog);
+        throw new Error('No liquidity available for this swap');
+      }
+
+      // Update expected amount
+      tradeLog.expectedAmountOut = formatUnits(
+        BigInt(quote.buyAmount), 
+        await this.getTokenDecimals(buyToken)
+      );
+
+      // Execute the swap
+      const receipt = await this.executeTransaction(quote);
+      
+      // Update trade log with success
+      tradeLog.status = 'COMPLETED';
+      tradeLog.txHash = receipt.transactionHash;
+      await this.logTrade(tradeLog);
+
+      return receipt;
+    } catch (error) {
+      // Update trade log with failure
+      tradeLog.status = 'FAILED';
+      tradeLog.error = error.message;
+      await this.logTrade(tradeLog);
+      throw error;
+    }
   }
 
   private async handleAllowance(contract: any, amount: bigint) {
@@ -158,4 +212,72 @@ export class TradingService {
     // Convert from raw amount to decimal string
     return formatUnits(tradeAmount, decimals);
   }
-} 
+
+  private async getTokenDecimals(tokenAddress: string): Promise<number> {
+    const contract = getContract({
+      address: tokenAddress,
+      abi: erc20Abi,
+      client: this.client
+    });
+    return contract.read.decimals();
+  }
+
+  private async logTrade(tradeLog: TradeLog) {
+    logger.info({
+      message: 'Trade Execution',
+      trade: tradeLog,
+      labels: { origin: 'TradingService', type: 'TRADE_LOG' }
+    });
+    
+    // Here you could also save to database if needed
+    // await this.db.trades.create(tradeLog);
+  }
+
+  async checkTradeViability(action: 'buy' | 'sell'): Promise<{
+    viable: boolean;
+    balance: string;
+    token: string;
+    reason?: string;
+  }> {
+    const tokenAddress = action === 'buy' ? config.contracts.USDT : config.contracts.WBTC;
+    const balance = await this.getTokenBalance(tokenAddress);
+    
+    const tokenContract = getContract({
+      address: tokenAddress,
+      abi: erc20Abi,
+      client: this.client
+    });
+    
+    const decimals = await tokenContract.read.decimals();
+    const formattedBalance = formatUnits(balance, decimals);
+    
+    // Consider minimum viable amounts (e.g., 1 USDT or 0.0001 WBTC)
+    const minAmount = action === 'buy' ? '1' : '0.0001';
+    
+    if (balance === BigInt(0)) {
+      return {
+        viable: false,
+        balance: '0',
+        token: tokenAddress,
+        reason: `No ${action === 'buy' ? 'USDT' : 'WBTC'} balance available for trade`
+      };
+    }
+
+    if (parseFloat(formattedBalance) < parseFloat(minAmount)) {
+      return {
+        viable: false,
+        balance: formattedBalance,
+        token: tokenAddress,
+        reason: `Balance too low for trade. Minimum required: ${minAmount}`
+      };
+    }
+
+    return {
+      viable: true,
+      balance: formattedBalance,
+      token: tokenAddress
+    };
+  }
+}
+
+export default TradingService; 
