@@ -51,7 +51,7 @@ export const columns: ColumnDef<Payment>[] = [
   },
   {
     accessorKey: 'status',
-    header: 'Status',
+    header: 'Tx. Date',
     cell: ({ row }) => (
       <div className="capitalize">{row.getValue('status')}</div>
     ),
@@ -59,12 +59,12 @@ export const columns: ColumnDef<Payment>[] = [
   {
     accessorKey: 'email',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Email" />
+      <DataTableColumnHeader column={column} title="Tx. Description" />
     ),
   },
   {
     accessorKey: 'amount',
-    header: () => <div className="text-right">Amount</div>,
+    header: () => <div className="text-right">Tx. Hash</div>,
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue('amount'));
       const formatted = new Intl.NumberFormat('en-US', {

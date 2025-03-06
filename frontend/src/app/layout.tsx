@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     template: "%s | MonetAI",
     default: "MonetAI",
   },
-  description: 'Your app description',
+  // description: 'Your app description',
   // metadataBase: new URL('https://google.com'),
   // openGraph: {
   //   title: 'Your App Name',
