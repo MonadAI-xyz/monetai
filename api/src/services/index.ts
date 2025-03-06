@@ -4,6 +4,7 @@ import UserService from './user.service';
 import LlmService from './llm.service';
 import MarketDataService from './marketData.service';
 import TradingService from './trading.service';
+import LlmQueue from './queues/llmDecision.worker';
 
 import _ from 'lodash';
 
@@ -24,6 +25,9 @@ export const allServices = {
   LlmService,
   MarketDataService,
   TradingService,
+
+  // Queues
+  LlmQueue,
 };
 
 class Services {

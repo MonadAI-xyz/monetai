@@ -5,7 +5,6 @@ import { MarketDataParams } from '@services/marketData.service';
 
 class LLMController {
   private llmService = Services.getInstance()?.llmService;
-  private tradingService = Services.getInstance()?.tradingService;
   private readonly MESSAGE = 'AI Decision Making Service';
 
   public makeDecision = async (req: Request, res: Response, next: NextFunction) => {
@@ -26,7 +25,7 @@ class LLMController {
 
   public getDecisions = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const decisions = await this.tradingService.getTradingHistory(req.params);
+      const decisions = await this.llmService.getDecisionHistory(req.params);
       return responsePreparer(200, decisions)(req, res, next);
     } catch (error) {
       next(error);

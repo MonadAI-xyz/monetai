@@ -23,6 +23,10 @@ const cfg = {
     secret: process.env.JWT_SECRET,
     issuer: process.env.JWT_ISSUER,
     validMins: process.env.JWT_VALID_MINS ? parseInt(process.env.JWT_VALID_MINS) : 3600,
+    bullBoard: {
+      user: process.env.BULLBOARD_USER,
+      pass: process.env.BULLBOARD_PASS,
+    },
   },
 
   postgres: {
@@ -52,6 +56,11 @@ const cfg = {
         : {},
     },
   },
+  redis: {
+    password: process.env.REDIS_PASSWORD,
+    host: process.env.REDIS_HOST,
+    port: parseInt(process.env.REDIS_PORT),
+  },
   ws: {
     port: process.env.WEBSOCKET_PORT,
   },
@@ -74,7 +83,7 @@ const cfg = {
     deepseek: {
       apiKey: process.env.DEEPSEEK_API_KEY,
       baseUrl: 'https://api.deepseek.com',
-      model: 'deepseek-chat'
+      model: 'deepseek-chat',
     },
     stork: {
       apiKey: process.env.STORK_API_KEY,
@@ -84,16 +93,16 @@ const cfg = {
   contracts: {
     USDT: '0x88b8E2161DEDC77EF4ab7585569D2415a1C1055D',
     WBTC: '0xcf5a6076cfa32686c0Df13aBaDa2b40dec133F1d',
-    PERMIT2: '0x000000000022D473030F116dDEE9F6B43aC78BA3'
+    PERMIT2: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
   },
   zeroEx: {
     apiKey: process.env.ZERO_EX_API_KEY,
-    baseUrl: 'https://api.0x.org'
+    baseUrl: 'https://api.0x.org',
   },
   chain: {
     rpcUrl: process.env.RPC_URL,
-    privateKey: process.env.PRIVATE_KEY
-  }
+    privateKey: process.env.PRIVATE_KEY,
+  },
 };
 
 export default cfg;

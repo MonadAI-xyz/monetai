@@ -7,6 +7,9 @@ import { getTimeRanges, timestampToDate } from '@utils/time';
 import { HttpBadRequest } from '@exceptions/http/HttpBadRequest';
 import TradingService from '@services/trading.service';
 import { DecisionHistory } from '@models';
+import _ from 'lodash';
+import { sequelizeQueryBuilder } from '@utils/utils';
+import { HttpError } from '@exceptions/http/HttpError';
 
 class LLMService extends BaseService {
   private openai: OpenAI;
@@ -153,16 +156,15 @@ class LLMService extends BaseService {
   public async makeDecision(params?: Partial<MarketDataParams>) {
     try {
       const timeRanges = getTimeRanges();
-      const pair = 'BTCUSD';
+      const pair = 'BTC_USD';
       const marketDataParams = {
         from: params?.from || timeRanges.from,
         to: params?.to || timeRanges.to,
         resolution: params?.resolution || '240',
-        symbol: 'BTCUSD',
+        symbol: _.replace(pair, /_/g, ''),
       };
 
       const data = await this.marketDataService.getMarketData(marketDataParams);
-      console.log('Market data', data);
       const indicators = this.calculateIndicators(data);
       const decision = await this.getCollectiveDecision(indicators);
       const decisionHistory = await DecisionHistory.create({
@@ -438,6 +440,34 @@ class LLMService extends BaseService {
 
     return 'LOW';
   }
+
+  /**
+   * Retrieves decisions history
+   *
+   * @param {any} options - Search and pagination options
+   * @returns {Promise<DecisionHistory>} - DecisionHistory.
+   * @throws {HttpError} - Error if something goes wrong
+   */
+  public getDecisionHistory = async (
+    options: any,
+  ): Promise<{
+    count: number;
+    rows: DecisionHistory[];
+  }> => {
+    try {
+      const search = sequelizeQueryBuilder(options, []);
+      return await DecisionHistory.findAndCountAll({
+        ...search,
+        order: [['createdAt', 'DESC']],
+      });
+    } catch (error) {
+      console.error('Error retrieving data:', error);
+      throw new HttpError({
+        message: 'Can not retrieve decision history',
+        errors: error,
+      });
+    }
+  };
 }
 
 export default LLMService;
