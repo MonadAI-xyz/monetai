@@ -9,10 +9,8 @@ import { getMessage, verifySignedMessage } from '@/lib/actions';
 
 export const ConnectWalletButton = () => {
   const { signMessage } = useSignMessage();
-  // const [signature, setSignature] = useState<`0x${string}` | null>(null);
   // TODO - show error message in toaster
   const [error, setError] = useState<string | null>(null);
-  // const [accountAddress, setAccountAddress] = useState<string | null>(null);
 
   // Listening to wallet account lifecycle events
   useAccountEffect({
@@ -26,7 +24,7 @@ export const ConnectWalletButton = () => {
 
       // Fetch message from API endpoint
       const reposnse = await getMessage();
-      console.log({ getMessage: reposnse });
+      // console.log({ getMessage: reposnse });
 
       // Get the message string
       const { message } = reposnse.data;
@@ -42,13 +40,9 @@ export const ConnectWalletButton = () => {
           onSuccess: async (signedMessage) => {
             console.log("Signed Message:", signedMessage);
 
-            /** 
-             * Verify the signature/signedMessage
-             */
+            // Verify the signature/signedMessage
             const response = await verifySignedMessage(address, signedMessage);
             console.log({ verifySignedMessage: response });
-
-            // setSignature(signedMessage); // Store the signed message
           },
           onError: (err) => {
             console.error("Signing failed:", err);

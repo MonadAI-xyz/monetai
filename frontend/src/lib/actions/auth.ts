@@ -25,7 +25,7 @@ export const verifySignedMessage = async (address: string, signedMessage: string
   }
 
   // Send request
-  const response = await fetchWrapper('/auth/verify/', {
+  const response = await fetchWrapper('/auth/verify', {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
