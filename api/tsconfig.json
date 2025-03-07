@@ -11,20 +11,23 @@
     ],
     "baseUrl": "./src",
     "paths": {
-      "@database": [
-        "database"
+      "@/*": [
+        "./*"
       ],
-      "@models": [
-        "database/models"
+      "@routes/*": [
+        "routes/*"
+      ],
+      "@utils/*": [
+        "utils/*"
+      ],
+      "@config": [
+        "config"
       ],
       "@services/*": [
         "services/*"
       ],
       "@controllers/*": [
         "controllers/*"
-      ],
-      "@routes/*": [
-        "routes/*"
       ],
       "@middlewares/*": [
         "middlewares/*"
@@ -35,14 +38,14 @@
       "@dtos/*": [
         "dtos/*"
       ],
-      "@utils/*": [
-        "utils/*"
-      ],
-      "@config": [
-        "config"
-      ],
       "@exceptions/*": [
         "exceptions/*"
+      ],
+      "@database": [
+        "database"
+      ],
+      "@models": [
+        "database/models"
       ],
       "@tests/*": [
         "tests/*"

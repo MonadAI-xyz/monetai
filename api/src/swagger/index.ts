@@ -1,4 +1,4 @@
-import { version } from '../../package.json';
+import {version} from '../../package.json';
 
 const swaggerDocument = {
   openapi: '3.0.0',

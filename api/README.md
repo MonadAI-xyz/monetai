@@ -32,15 +32,14 @@ Documentation: https://sequelize.org/master/manual/migrations.html
 
 Tutorial: https://www.youtube.com/watch?v=a5Wh_LDXtLc
 
-
 ```bash
 npm run db:migrate
 ```
 
 ## Quickstart Localhost Working Environment Setup
 
-* Enter the root directory of the project.
-* Copy `.env.local` to `.env`.
-* Ensure your `.env` file is correctly populated
-* Run `npm run start:local`
-* To stop database and ALSO delete the volumes, run `docker-compose down -v`
+- Enter the root directory of the project.
+- Copy `.env.local` to `.env`.
+- Ensure your `.env` file is correctly populated
+- Run `npm run start:local`
+- To stop database and ALSO delete the volumes, run `docker-compose down -v`

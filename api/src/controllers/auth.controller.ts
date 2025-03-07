@@ -1,12 +1,10 @@
-import { HttpBadRequest } from '@exceptions/http/HttpBadRequest';
 import responsePreparer from '@middlewares/responseHandler.middleware';
-import { UserAttributes } from '@models';
 import { NextFunction, Request, Response } from 'express';
 import Services from '@services/index';
 
 class AuthController {
   private authService = Services.getInstance()?.authService;
-  private readonly MESSAGE = "Welcome to MonetAI! Sign this message to login.";
+  private readonly MESSAGE = 'Welcome to MonetAI! Sign this message to login.';
 
   public getMessage = async (req: Request, res: Response, next: NextFunction) => {
     try {

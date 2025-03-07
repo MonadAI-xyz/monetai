@@ -16,12 +16,19 @@ import path from 'path';
 import responseTime from 'response-time';
 import swaggerUi from 'swagger-ui-express';
 import swagger from './swagger';
+import { createBullBoard } from '@bull-board/api';
+import { ExpressAdapter } from '@bull-board/express';
+import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
+
+import basicAuth from 'express-basic-auth';
+import Services from '@/services';
 
 class App {
-  public app: express.Application;
+  public app: express.Application & { ws: any };
   public expressWs: any;
   public port: number;
   public env: string;
+  public serverAdapter = new ExpressAdapter();
 
   constructor(routes: Routes[], adminRoutes?: Routes[]) {
     this.expressWs = expressWs(express(), null, {
@@ -50,6 +57,7 @@ class App {
     this.initializeSwagger();
     this.initializeErrorHandling();
     this.initializeStaticRoutes();
+    this.initializeJobs();
 
     this.app.set('view engine', 'ejs');
     this.app.set('view engine', 'ejs');
@@ -136,6 +144,41 @@ class App {
   private initializeErrorHandling() {
     this.app.use(successMiddleware);
     this.app.use(errorHandler);
+  }
+
+  private async initializeJobs() {
+    try {
+      const llmQueueWorker = Services.getInstance().llmQueue;
+      this.serverAdapter.setBasePath('/bullmq');
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      createBullBoard({
+        queues: [new BullMQAdapter(llmQueueWorker.llmDecisionQueue.queue)],
+        serverAdapter: this.serverAdapter,
+      });
+      this.app.use(
+        '/bullmq',
+        basicAuth({
+          users: { [config.auth.bullBoard.user]: config.auth.bullBoard.pass },
+          challenge: true, // Triggers browser login prompt
+          unauthorizedResponse: 'Unauthorized access',
+        }),
+        this.serverAdapter.getRouter(),
+      );
+
+      await llmQueueWorker.llmDecisionQueue.removeAllRepeatable();
+      llmQueueWorker.llmDecisionQueue.addQueue(
+        'apply-decision',
+        {},
+        {
+          repeat: {
+            cron: '0 * * * *', // Runs at the start of every hour
+          },
+        },
+      );
+    } catch (error) {
+      console.log(error);
+    }
   }
 }
 

@@ -13,7 +13,7 @@ export interface MarketDataParams {
 
 export interface MarketDataResponse {
   s?: string;
-  t: number[];  // timestamps
+  t: number[]; // timestamps
   c?: number[]; // close prices
   o?: number[]; // open prices
   h?: number[]; // high prices
@@ -23,42 +23,36 @@ export interface MarketDataResponse {
   errmsg?: string;
 }
 
-export const TRADING_PAIRS = [
-  'BTCUSD', 'ETHUSD', 'LTCUSD', 'BNBUSD', 'XRPUSD',
-  'ADAUSD', 'SOLUSD', 'DOTUSD', 'MATICUSD', 'DOGEUSD'
-];
+export const TRADING_PAIRS = ['BTCUSD', 'ETHUSD', 'LTCUSD', 'BNBUSD', 'XRPUSD', 'ADAUSD', 'SOLUSD', 'DOTUSD', 'MATICUSD', 'DOGEUSD'];
 
 class MarketDataService extends BaseService {
-
   private readonly baseUrl = config.ai.stork.baseUrl;
   private readonly apiKey = config.ai.stork.apiKey;
 
   public async getAllPairsData(params: Omit<MarketDataParams, 'symbol'>): Promise<Record<string, MarketDataResponse>> {
     const results: Record<string, MarketDataResponse> = {};
-    
+
     await Promise.all(
-      TRADING_PAIRS.map(async (symbol) => {
+      TRADING_PAIRS.map(async symbol => {
         try {
           const data = await this.getMarketData({ ...params, symbol });
-          
+
           if (data.s === 'error' || data.status === 'error') {
             throw new HttpBadRequest(data.errmsg || 'API returned error status');
           }
-          
+
           results[symbol] = data;
         } catch (error) {
-          logger.error({ 
-            message: `Error fetching market data for ${symbol}: ${error.message}`, 
-            labels: { origin: 'MarketDataService' } 
+          logger.error({
+            message: `Error fetching market data for ${symbol}: ${error.message}`,
+            labels: { origin: 'MarketDataService' },
           });
           results[symbol] = this.getEmptyResponse();
         }
-      })
+      }),
     );
 
-    const validPairs = Object.entries(results).filter(([_, data]) => 
-      data.t && data.t.length > 0 && data.c && data.c.length > 0
-    );
+    const validPairs = Object.entries(results).filter(([_, data]) => data.t && data.t.length > 0 && data.c && data.c.length > 0);
 
     if (validPairs.length === 0) {
       throw new HttpBadRequest('Failed to fetch valid data for any trading pair');
@@ -76,7 +70,7 @@ class MarketDataService extends BaseService {
       const response = await axios.get(`${this.baseUrl}/tradingview/history`, {
         params,
         headers: {
-          'Authorization': `Basic ${this.apiKey.trim()}`,
+          Authorization: `Basic ${this.apiKey.trim()}`,
         },
       });
 
@@ -87,12 +81,12 @@ class MarketDataService extends BaseService {
       return this.formatResponse(response.data);
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        logger.error({ 
+        logger.error({
           message: `API request failed: ${error.message}`,
           status: error.response?.status,
           data: error.response?.data,
           params,
-          labels: { origin: 'MarketDataService' }
+          labels: { origin: 'MarketDataService' },
         });
       }
       throw error;
@@ -109,21 +103,21 @@ class MarketDataService extends BaseService {
       l: data.l || [],
       v: data.v || [],
       status: data.status,
-      errmsg: data.errmsg
+      errmsg: data.errmsg,
     };
   }
 
   private getEmptyResponse(): MarketDataResponse {
     return {
-      s: "error",
+      s: 'error',
       t: [],
       c: [],
       o: [],
       h: [],
       l: [],
-      v: []
+      v: [],
     };
   }
 }
 
-export default MarketDataService; 
+export default MarketDataService;

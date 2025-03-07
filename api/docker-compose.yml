@@ -13,11 +13,25 @@ services:
     volumes:
       - dbdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD', 'pg_isready', '-U', '${POSTGRES_USER}']
+      test: [ 'CMD', 'pg_isready', '-U', '${POSTGRES_USER}' ]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  cache:
+    image: redis:latest
+    restart: always
+    ports:
+      - ${REDIS_PORT}:${REDIS_PORT}
+    command: redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD}
+    env_file:
+      - .env
+    volumes:
+      - cache:/data
+
+
 volumes:
   dbdata:
+    driver: local
+  cache:
     driver: local

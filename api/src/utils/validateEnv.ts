@@ -23,6 +23,10 @@ function validateEnv() {
     OAUTH_CLIENT_SECRET: str(),
     OAUTH_REDIRECT_URI: str(),
     OAUTH_REFRESH_TOKEN: str(),
+
+    REDIS_HOST: host(),
+    REDIS_PORT: port(),
+    REDIS_PASSWORD: str(),
   });
 }
 
