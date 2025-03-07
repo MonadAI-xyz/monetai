@@ -1,14 +1,18 @@
 "use client";
 
-import { getMessage } from '@/lib/actions';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import Cookies from 'js-cookie';
 import React, { useState } from 'react'
 import { useAccountEffect, useSignMessage } from 'wagmi';
 
+import { getMessage, verifySignedMessage } from '@/lib/actions';
+
 export const ConnectWalletButton = () => {
   const { signMessage } = useSignMessage();
-  const [signature, setSignature] = useState<`0x${string}` | null>(null);
+  // const [signature, setSignature] = useState<`0x${string}` | null>(null);
+  // TODO - show error message in toaster
   const [error, setError] = useState<string | null>(null);
+  // const [accountAddress, setAccountAddress] = useState<string | null>(null);
 
   // Listening to wallet account lifecycle events
   useAccountEffect({
@@ -17,25 +21,34 @@ export const ConnectWalletButton = () => {
       console.log('Account Connected!', address);
       if (!address) return;
 
+      const authToken = Cookies.get("authToken");
+      if (authToken) return;
+
       // Fetch message from API endpoint
       const reposnse = await getMessage();
       console.log({ getMessage: reposnse });
 
       // Get the message string
       const { message } = reposnse.data;
+      console.log({ message });
 
       // Sign the message
       signMessage(
-        { account: address, message },
         {
-          onSuccess: (signedMessage) => {
+          account: address,
+          message,
+        },
+        {
+          onSuccess: async (signedMessage) => {
             console.log("Signed Message:", signedMessage);
 
             /** 
-             * TODO - call backend API (via Server Action) to verify the signature/signedMessage,
-             * And store ther JWT token in cookies in server action
+             * Verify the signature/signedMessage
              */
-            setSignature(signedMessage); // Store the signed message
+            const response = await verifySignedMessage(address, signedMessage);
+            console.log({ verifySignedMessage: response });
+
+            // setSignature(signedMessage); // Store the signed message
           },
           onError: (err) => {
             console.error("Signing failed:", err);
@@ -51,5 +64,5 @@ export const ConnectWalletButton = () => {
 
   return (
     <ConnectButton />
-  )
+  );
 }

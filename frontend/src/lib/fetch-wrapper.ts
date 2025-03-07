@@ -37,14 +37,15 @@ export const fetchWrapper = async (
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      throw new Error(`API Error (${response.status}): ${response.statusText}`);
-      // // Access the body and convert it to JSON
-      // const errorBody = await response.json();
-      // console.log({errorBody});
+      // Access the body and convert it to JSON
+      const errorBody = await response.json();
+      console.log({errorBody});
+
+      throw new Error(`API Error (${response.status}): ${response.statusText} - ${errorBody?.message}`);
 
       // return { 
       //   status: response.status,
-      //   error: `Fetch error: ${response.status} ${response.statusText}`,
+      //   error: errorBody?.message || `Fetch error: ${response.status} ${response.statusText}`,
       // };
     }
 
