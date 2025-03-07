@@ -36,14 +36,6 @@ const menuItems: INavigationMenuItem[] = [
     title: 'Lending',
     href: '#',
   },
-  {
-    title: 'Cross-Chain',
-    href: '#',
-  },
-  {
-    title: 'Security',
-    href: '#',
-  },
 ];
 
 export default function Header() {
