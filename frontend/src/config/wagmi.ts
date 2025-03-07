@@ -4,7 +4,7 @@ import {
   monadTestnet,
 } from 'wagmi/chains';
 
-export const wagmiConfig =  getDefaultConfig({
+export const wagmiConfig = getDefaultConfig({
   appName: 'MonetAI',
   projectId: process.env.NEXT_PUBLIC_RAINBOW_PROJECT_ID,
   chains: [

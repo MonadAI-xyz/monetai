@@ -1,8 +1,9 @@
 "use client";
 
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Link from 'next/link';
 import React from 'react';
+
+import { ConnectWalletButton } from './wallet';
 
 import {
   NavigationMenu,
@@ -68,7 +69,7 @@ export default function Header() {
           </NavigationMenuList>
         </NavigationMenu>
         <div className='ml-auto'>
-          <ConnectButton />
+          <ConnectWalletButton />
         </div>
       </div>
     </header>
