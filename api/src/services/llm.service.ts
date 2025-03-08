@@ -2,7 +2,12 @@ import BaseService from '@services/baseService.service';
 import config from '@config';
 import { OpenAI } from 'openai';
 import { logger } from '@utils/logger';
-import MarketDataService, { MarketDataParams } from './marketData.service';
+import MarketDataService, { 
+  MarketDataParams, 
+  MarketDataResponse, 
+  TRADING_PAIRS, 
+  TradingPair 
+} from './marketData.service';
 import { getTimeRanges, timestampToDate } from '@utils/time';
 import { HttpBadRequest } from '@exceptions/http/HttpBadRequest';
 import TradingService from '@services/trading.service';
@@ -11,6 +16,7 @@ import _ from 'lodash';
 import { sequelizeQueryBuilder } from '@utils/utils';
 import { HttpError } from '@exceptions/http/HttpError';
 import CurvanceService from './curvance.service';
+
 
 class LLMService extends BaseService {
   private openai: OpenAI;
@@ -47,7 +53,7 @@ class LLMService extends BaseService {
       throw new Error('No AI models available for decision making');
     }
 
-    // If one model fails, use the other one
+    // If one model fails, use the other one with medium confidence
     if (gptResult.status === 'rejected') {
       const decision = deepseekResult.value;
       return {
@@ -76,58 +82,112 @@ class LLMService extends BaseService {
     const gptDecision = gptResult.value;
     const deepseekDecision = deepseekResult.value;
 
-    // If both agree, use that decision
-    if (gptDecision.action === deepseekDecision.action) {
+    // If both agree on action and pair, merge their decisions
+    if (gptDecision.action === deepseekDecision.action && 
+        gptDecision.pair === deepseekDecision.pair) {
       return {
         action: gptDecision.action,
+        pair: gptDecision.pair,
         shouldExecute: gptDecision.action === 'BUY' || gptDecision.action === 'SELL',
         reasoning: {
           marketCondition: `GPT & DeepSeek Agree: ${gptDecision.reasoning.marketCondition}`,
           technicalAnalysis: `Consensus: ${gptDecision.reasoning.technicalAnalysis}`,
-          riskAssessment: this.combineRiskAssessments(gptDecision?.reasoning?.riskAssessment, deepseekDecision?.reasoning?.riskAssessment),
+          riskAssessment: this.combineRiskAssessments(
+            gptDecision?.reasoning?.riskAssessment, 
+            deepseekDecision?.reasoning?.riskAssessment
+          ),
+          pairSelection: gptDecision.reasoning.pairSelection,
+          comparativeAnalysis: {
+            ...gptDecision.reasoning.comparativeAnalysis,
+            modelAgreement: "Both models agree on pair selection and action"
+          }
         },
         confidence: 'HIGH',
       };
     }
 
-    // If they disagree, default to more conservative action
+    // If they disagree, take the conservative approach
     return {
       action: 'WAIT',
+      pair: null,
       shouldExecute: false,
       reasoning: {
         marketCondition: 'Mixed signals between GPT and DeepSeek',
-        technicalAnalysis: `GPT suggests ${gptDecision.action}, DeepSeek suggests ${deepseekDecision.action}`,
+        technicalAnalysis: `GPT suggests ${gptDecision.action} ${gptDecision.pair}, DeepSeek suggests ${deepseekDecision.action} ${deepseekDecision.pair}`,
         riskAssessment: 'HIGH due to model disagreement',
+        pairSelection: 'Models disagree on pair selection',
+        comparativeAnalysis: {
+          volatilityComparison: "Analysis suspended due to model disagreement",
+          trendAlignment: "Models show different interpretations",
+          relativeStrength: "No consensus on strongest pair",
+          modelAgreement: "Models disagree on best trading opportunity"
+        }
       },
       confidence: 'LOW',
     };
   }
 
-  private async getModelDecision(client: OpenAI, model: string, indicators: any) {
+  private async getModelDecision(client: OpenAI, model: string, data: any) {
     const completion = await client.chat.completions.create({
       messages: [
         {
           role: 'system',
-          content: `You are a BTC/USD trading advisor. Respond with ONLY raw JSON, no markdown or code blocks.`,
+          content: `You are a professional crypto trading advisor analyzing BTC/USD, ETH/USD, and SOL/USD pairs. You must assess market conditions using technical indicators, price action, and sentiment analysis. Respond with ONLY raw JSON, no markdown or code blocks.`,
         },
         {
           role: 'user',
-          content: `Based on this BTC/USD data, should we buy, sell, or wait?
-                   Data: ${JSON.stringify(indicators)}
-                   Return ONLY this JSON structure (no markdown, no code blocks):
+          content: `Analyze these trading pairs and recommend the best trading opportunity if any:
+                   Data: ${JSON.stringify(data)}
+
+                   Consider the following factors in your analysis:
+                   
+                   1. Technical Indicators:
+                   - Moving Averages (50/200 EMA)
+                   - Relative Strength Index (RSI)
+                   - MACD
+                   - Bollinger Bands
+                   - Volume Trends
+                   
+                   2. Price Action & Trend Analysis:
+                   - Support/Resistance Levels
+                   - Breakouts/Reversals
+                   - Trend Strength
+                   - Price Patterns
+                   
+                   3. Cross-Pair Analysis:
+                   - Correlations
+                   - Relative Strength
+                   - Market Regime
+                   - Leading/Lagging Pairs
+
+                   4. Risk Assessment:
+                   - Volatility Levels
+                   - Stop-Loss Placement
+                   - Position Sizing
+                   - Market Depth
+
+                   Return ONLY this JSON structure (no markdown):
                    {
                      "action": "BUY" | "SELL" | "WAIT",
+                     "pair": "BTC_USD" | "ETH_USD" | "SOL_USD",
                      "reasoning": {
-                       "marketCondition": "brief state",
-                       "technicalAnalysis": "key factors",
-                       "riskAssessment": "risk level"
+                       "marketCondition": "brief state of the chosen market",
+                       "technicalAnalysis": "key technical factors",
+                       "riskAssessment": "risk level and considerations",
+                       "pairSelection": "why this pair was chosen over others",
+                       "comparativeAnalysis": {
+                         "volatilityComparison": "volatility across pairs",
+                         "trendAlignment": "how trends align/diverge",
+                         "relativeStrength": "strongest setup and why",
+                         "correlationImpact": "how correlations affect the decision"
+                       }
                      }
                    }`,
         },
       ],
       model: model,
       temperature: 0.2,
-      max_tokens: 250,
+      max_tokens: 500,
     });
 
     try {
@@ -161,22 +221,22 @@ class LLMService extends BaseService {
   public async makeDecision(params: Partial<MarketDataParams>) {
     try {
       const timeRanges = getTimeRanges();
-      const pair = 'BTC_USD';
       const marketDataParams = {
         from: params?.from || timeRanges.from,
         to: params?.to || timeRanges.to,
         resolution: params?.resolution || '240',
-        symbol: _.replace(pair, /_/g, ''),
       };
 
-      // Get both trading and lending market data
+      // Get market data for all pairs and Curvance
       const [tradingMarketData, curvanceMarketData] = await Promise.all([
-        this.marketDataService.getMarketData(marketDataParams),
+        this.marketDataService.getAllPairsData(marketDataParams),
         this.curvanceService.getMarketData()
       ]);
 
-      // Get trading decision
-      const tradingIndicators = this.calculateIndicators(tradingMarketData);
+      // Calculate indicators for all pairs
+      const tradingIndicators = this.calculateIndicatorsForAllPairs(tradingMarketData);
+      
+      // Get trading decision across all pairs
       const tradingDecision = await this.getCollectiveDecision(tradingIndicators);
 
       // Get Curvance decision
@@ -187,9 +247,9 @@ class LLMService extends BaseService {
 
       // Execute both decisions if needed
       const executions = await Promise.allSettled([
-        // Execute trade if shouldExecute is true
-        tradingDecision.shouldExecute 
-          ? this.handleTradeSignal(tradingDecision, pair)
+        // Execute trade if shouldExecute is true and we have a valid pair
+        tradingDecision.shouldExecute && tradingDecision.pair
+          ? this.handleTradeSignal(tradingDecision)
           : Promise.resolve(),
           
         // Execute Curvance actions if shouldExecute is true
@@ -211,7 +271,6 @@ class LLMService extends BaseService {
 
       return {
         timestamp: new Date().toISOString(),
-        pair,
         indicators: {
           trading: tradingIndicators,
           lending: this.formatLendingMetrics(curvanceMarketData)
@@ -831,17 +890,18 @@ class LLMService extends BaseService {
     return (prices[prices.length - 1] / prices[prices.length - 1 - period] - 1) * 100;
   }
 
-  async handleTradeSignal(decision: any, pair: string) {
+  async handleTradeSignal(decision: any) {
     try {
-      if (!decision.action || !['BUY', 'SELL'].includes(decision.action)) {
-        logger.info('No trade action needed');
+      if (!decision.action || !['BUY', 'SELL'].includes(decision.action) || !decision.pair) {
+        logger.info('No valid trade action needed');
         return null;
       }
 
       const action = decision.action.toLowerCase() as 'buy' | 'sell';
+      const pair = decision.pair.replace('_', '');
 
       // Check if trade is viable before proceeding
-      const viability = await this.tradingService.checkTradeViability(action);
+      const viability = await this.tradingService.checkTradeViability(action, pair);
       if (!viability.viable) {
         logger.warn({
           message: 'Trade not viable',
@@ -849,17 +909,16 @@ class LLMService extends BaseService {
           balance: viability.balance,
           token: viability.token,
           action,
+          pair,
           labels: { origin: 'LLMService' },
         });
         return null;
       }
 
-      const riskLevel = 'HIGH';
-
-      this.assessRiskLevel(decision.reasoning.riskAssessment);
+      const riskLevel = this.assessRiskLevel(decision.reasoning.riskAssessment);
 
       try {
-        const amount = await this.tradingService.calculateTradeAmount(action, riskLevel);
+        const amount = await this.tradingService.calculateTradeAmount(action, riskLevel, pair);
         logger.info(`Executing ${action} ${pair} trade with ${amount} (${riskLevel} risk)`);
         return this.tradingService.executeSwap(action, pair, amount, decision);
       } catch (error) {
@@ -876,7 +935,8 @@ class LLMService extends BaseService {
       }
     } catch (error) {
       logger.error({
-        message: `Error executing trade: [${pair}] ${error.message}`,
+        message: `Error executing trade: ${error.message}`,
+        decision,
         labels: { origin: 'LLMService.handleTradeSignal' },
       });
       throw error;
@@ -926,6 +986,144 @@ class LLMService extends BaseService {
       });
     }
   };
+
+  private calculateIndicatorsForAllPairs(marketData: Record<TradingPair, MarketDataResponse>) {
+    const indicators = {} as Record<TradingPair, any>;
+    
+    for (const [pair, data] of Object.entries(marketData)) {
+      indicators[pair] = this.calculateIndicators(data);
+    }
+
+    // Add cross-pair analysis
+    const crossPairAnalysis = this.calculateCrossPairMetrics(marketData);
+
+    return {
+      pairs: indicators,
+      crossPairAnalysis
+    };
+  }
+
+  private calculateCrossPairMetrics(marketData: Record<TradingPair, MarketDataResponse>) {
+    try {
+      const correlations: Record<string, number> = {};
+      const relativeStrength: Record<string, number> = {};
+      const volatilityRank: Record<string, number> = {};
+
+      // Calculate correlations between pairs
+      for (let i = 0; i < TRADING_PAIRS.length; i++) {
+        for (let j = i + 1; j < TRADING_PAIRS.length; j++) {
+          const pair1 = TRADING_PAIRS[i];
+          const pair2 = TRADING_PAIRS[j];
+          
+          const returns1 = this.calculateReturns(marketData[pair1].c || []);
+          const returns2 = this.calculateReturns(marketData[pair2].c || []);
+          
+          correlations[`${pair1}_${pair2}`] = this.calculateCorrelation(returns1, returns2);
+        }
+      }
+
+      // Calculate relative strength (using last 24h performance)
+      for (const pair of TRADING_PAIRS) {
+        const prices = marketData[pair].c || [];
+        const dailyChange = this.calculatePriceChange(prices, 6); // 6 4-hour periods = 1 day
+        relativeStrength[pair] = dailyChange;
+      }
+
+      // Rank pairs by volatility
+      const volatilities = TRADING_PAIRS.map(pair => ({
+        pair,
+        volatility: this.calculateVolatility(this.calculateReturns(marketData[pair].c || [])),
+      }));
+
+      volatilities.sort((a, b) => b.volatility - a.volatility);
+      volatilities.forEach((v, i) => {
+        volatilityRank[v.pair] = i + 1;
+      });
+
+      return {
+        correlations,
+        relativeStrength,
+        volatilityRank,
+        strongestTrend: this.findStrongestTrend(marketData),
+        marketRegime: this.determineMarketRegime(marketData)
+      };
+    } catch (error) {
+      logger.error({
+        message: 'Error calculating cross-pair metrics',
+        error: error.message,
+        labels: { origin: 'LLMService' },
+      });
+      return {
+        correlations: {},
+        relativeStrength: {},
+        volatilityRank: {},
+        strongestTrend: null,
+        marketRegime: 'UNKNOWN'
+      };
+    }
+  }
+
+  private calculateCorrelation(returns1: number[], returns2: number[]): number {
+    const n = Math.min(returns1.length, returns2.length);
+    if (n < 2) return 0;
+
+    const mean1 = returns1.slice(0, n).reduce((a, b) => a + b, 0) / n;
+    const mean2 = returns2.slice(0, n).reduce((a, b) => a + b, 0) / n;
+
+    const variance1 = returns1.slice(0, n).reduce((a, b) => a + Math.pow(b - mean1, 2), 0);
+    const variance2 = returns2.slice(0, n).reduce((a, b) => a + Math.pow(b - mean2, 2), 0);
+
+    const covariance = returns1.slice(0, n).reduce((a, b, i) => a + (b - mean1) * (returns2[i] - mean2), 0);
+
+    return covariance / Math.sqrt(variance1 * variance2);
+  }
+
+  private findStrongestTrend(marketData: Record<TradingPair, MarketDataResponse>): string | null {
+    let strongestTrend = null;
+    let maxTrendStrength = 0;
+
+    for (const [pair, data] of Object.entries(marketData)) {
+      const prices = data.c || [];
+      const sma20 = this.calculateSMA(prices, 20);
+      const sma50 = this.calculateSMA(prices, 50);
+      const momentum = Math.abs(this.calculateMomentum(prices, 14));
+
+      const trendStrength = momentum * (sma20 > sma50 ? 1 : -1);
+
+      if (Math.abs(trendStrength) > Math.abs(maxTrendStrength)) {
+        maxTrendStrength = trendStrength;
+        strongestTrend = pair;
+      }
+    }
+
+    return strongestTrend;
+  }
+
+  private determineMarketRegime(marketData: Record<TradingPair, MarketDataResponse>): 'RISK_ON' | 'RISK_OFF' | 'MIXED' | 'UNKNOWN' {
+    try {
+      let riskOnCount = 0;
+      let riskOffCount = 0;
+
+      for (const data of Object.values(marketData)) {
+        const prices = data.c || [];
+        const rsi = this.calculateRSI(prices, 14);
+        const volatility = this.calculateVolatility(this.calculateReturns(prices));
+        const momentum = this.calculateMomentum(prices, 14);
+
+        if (rsi > 50 && momentum > 0 && volatility < 0.02) {
+          riskOnCount++;
+        } else if (rsi < 50 && momentum < 0) {
+          riskOffCount++;
+        }
+      }
+
+      if (riskOnCount > TRADING_PAIRS.length / 2) return 'RISK_ON';
+      if (riskOffCount > TRADING_PAIRS.length / 2) return 'RISK_OFF';
+      return 'MIXED';
+    } catch (error) {
+      return 'UNKNOWN';
+    }
+  }
 }
 
 export default LLMService;
