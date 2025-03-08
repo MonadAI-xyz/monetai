@@ -1,8 +1,9 @@
 "use client";
 
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Link from 'next/link';
 import React from 'react';
+
+import { ConnectWalletButton } from './wallet';
 
 import {
   NavigationMenu,
@@ -35,14 +36,6 @@ const menuItems: INavigationMenuItem[] = [
     title: 'Lending',
     href: '#',
   },
-  {
-    title: 'Cross-Chain',
-    href: '#',
-  },
-  {
-    title: 'Security',
-    href: '#',
-  },
 ];
 
 export default function Header() {
@@ -68,7 +61,7 @@ export default function Header() {
           </NavigationMenuList>
         </NavigationMenu>
         <div className='ml-auto'>
-          <ConnectButton />
+          <ConnectWalletButton />
         </div>
       </div>
     </header>
