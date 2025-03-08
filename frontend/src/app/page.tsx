@@ -32,14 +32,12 @@ const transformTradingHistoryData = (data: ITradingHistoryData[]): ITradingHisto
 
 export default async function Page() {
   const response = await getTradingHistory();
-  console.log({ getTradingHistory: response });
+  // console.log({ getTradingHistory: response });
 
   // Tranform the fetched data if sxists, otherwise fallback to static data
   const transformedData = response.data.count > 0
     ? transformTradingHistoryData(response.data.rows)
     : [];
-
-  console.log({ transformedData });
 
   return (
     // <SidebarProvider>
