@@ -24,7 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/data-table';
-import { Input } from '@/components/ui/input';
+// import { Input } from '@/components/ui/input';
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -62,14 +62,15 @@ export function DataTable<TData, TValue>({
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex items-center">
-        <Input
+        {/* <Input
           className="max-w-sm"
           placeholder="Filter emails..."
           value={(table.getColumn('email')?.getFilterValue() as string) ?? ''}
           onChange={(event) =>
             table.getColumn('email')?.setFilterValue(event.target.value)
           }
-        />
+        /> */}
+        <h1 className="font-semibold tracking-tight text-xl">MonetAI Tx. History</h1>
         <DataTableViewOptions table={table} />
       </div>
       <div className="rounded-md border">
@@ -83,9 +84,9 @@ export function DataTable<TData, TValue>({
                       {header.isPlaceholder
                         ? null
                         : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
                     </TableHead>
                   );
                 })}
