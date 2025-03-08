@@ -33,3 +33,12 @@ export interface IDecision {
   createdAt: string;
   updatedAt: string;
 };
+
+// OHLC Historical Price Metrics
+export interface OHLCData {
+  t: number[]; // Timestamps (Unix seconds)
+  o: number[]; // Open prices
+  h: number[]; // High prices
+  l: number[]; // Low prices
+  c: number[]; // Close prices
+};
