@@ -8,7 +8,7 @@ export interface MarketDataParams {
   from: number;
   to: number;
   resolution: '1' | '2' | '5' | '15' | '30' | '60' | '120' | '240' | '360' | '720' | 'D' | '1D' | 'W' | '1W' | 'M' | '1M';
-  symbol: string;
+  symbol?: string; // Make optional since we'll fetch all pairs by default
 }
 
 export interface MarketDataResponse {
@@ -23,14 +23,15 @@ export interface MarketDataResponse {
   errmsg?: string;
 }
 
-export const TRADING_PAIRS = ['BTCUSD', 'ETHUSD', 'LTCUSD', 'BNBUSD', 'XRPUSD', 'ADAUSD', 'SOLUSD', 'DOTUSD', 'MATICUSD', 'DOGEUSD'];
+export const TRADING_PAIRS = ['BTCUSD', 'ETHUSD', 'SOLUSD'] as const;
+export type TradingPair = typeof TRADING_PAIRS[number];
 
 class MarketDataService extends BaseService {
   private readonly baseUrl = config.ai.stork.baseUrl;
   private readonly apiKey = config.ai.stork.apiKey;
 
-  public async getAllPairsData(params: Omit<MarketDataParams, 'symbol'>): Promise<Record<string, MarketDataResponse>> {
-    const results: Record<string, MarketDataResponse> = {};
+  public async getAllPairsData(params: Omit<MarketDataParams, 'symbol'>): Promise<Record<TradingPair, MarketDataResponse>> {
+    const results: Partial<Record<TradingPair, MarketDataResponse>> = {};
 
     await Promise.all(
       TRADING_PAIRS.map(async symbol => {
@@ -58,7 +59,7 @@ class MarketDataService extends BaseService {
       throw new HttpBadRequest('Failed to fetch valid data for any trading pair');
     }
 
-    return results;
+    return results as Record<TradingPair, MarketDataResponse>;
   }
 
   public async getMarketData(params: MarketDataParams): Promise<MarketDataResponse> {
