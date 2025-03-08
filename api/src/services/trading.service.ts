@@ -39,7 +39,7 @@ class TradingService extends BaseService {
     // Check balances first
     const balance = await this.getTokenBalance(sellToken);
     const tokenContract = getContract({
-      address: sellToken,
+      address: sellToken as `0x${string}`,
       abi: erc20Abi,
       client: this.client,
     });
@@ -162,7 +162,7 @@ class TradingService extends BaseService {
 
   async getTokenBalance(tokenAddress: string): Promise<bigint> {
     const tokenContract = getContract({
-      address: tokenAddress,
+      address: tokenAddress as `0x${string}`,
       abi: erc20Abi,
       client: this.client,
     });
@@ -175,7 +175,7 @@ class TradingService extends BaseService {
     const balance = await this.getTokenBalance(tokenAddress);
 
     const tokenContract = getContract({
-      address: tokenAddress,
+      address: tokenAddress as `0x${string}`,
       abi: erc20Abi,
       client: this.client,
     });
@@ -192,7 +192,7 @@ class TradingService extends BaseService {
 
   private async getTokenDecimals(tokenAddress: string): Promise<number> {
     const contract = getContract({
-      address: tokenAddress,
+      address: tokenAddress as `0x${string}`,
       abi: erc20Abi,
       client: this.client,
     });
@@ -220,7 +220,7 @@ class TradingService extends BaseService {
     const balance = await this.getTokenBalance(tokenAddress);
 
     const tokenContract = getContract({
-      address: tokenAddress,
+      address: tokenAddress as `0x${string}`,
       abi: erc20Abi,
       client: this.client,
     });

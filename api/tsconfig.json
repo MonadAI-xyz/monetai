@@ -23,6 +23,9 @@
       "@config": [
         "config"
       ],
+      "@config/abi": [
+        "config/abi"
+      ],
       "@services/*": [
         "services/*"
       ],

@@ -103,6 +103,31 @@ const cfg = {
     rpcUrl: process.env.RPC_URL,
     privateKey: process.env.PRIVATE_KEY,
   },
+  curvance: {
+    contracts: {
+      universalBalance: process.env.CURVANCE_UNIVERSAL_BALANCE_ADDRESS,
+      eTokens: {
+        USDC: process.env.CURVANCE_ETOKEN_USDC_ADDRESS,
+        WBTC: process.env.CURVANCE_ETOKEN_WBTC_ADDRESS,
+        aUSD: process.env.CURVANCE_ETOKEN_AUSD_ADDRESS,
+      },
+      pTokens: {
+        LUSD: process.env.CURVANCE_PTOKEN_LUSD_ADDRESS,
+        USDC: process.env.CURVANCE_PTOKEN_USDC_ADDRESS,
+        WBTC: process.env.CURVANCE_PTOKEN_WBTC_ADDRESS,
+      },
+    },
+    decimals: {
+      USDC: 6,
+      WBTC: 8,
+      aUSD: 18,
+      LUSD: 18,
+    },
+    delegateAddress: process.env.WALLET_ADDRESS,
+  },
+  wallet: {
+    address: process.env.WALLET_ADDRESS,
+  },
 };
 
 export default cfg;

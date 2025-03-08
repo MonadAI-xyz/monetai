@@ -10,12 +10,15 @@ import { DecisionHistory } from '@models';
 import _ from 'lodash';
 import { sequelizeQueryBuilder } from '@utils/utils';
 import { HttpError } from '@exceptions/http/HttpError';
+import CurvanceService from './curvance.service';
 
 class LLMService extends BaseService {
   private openai: OpenAI;
   private deepseek: OpenAI;
   private marketDataService: MarketDataService | null = null;
   private tradingService: TradingService | null = null;
+  private curvanceService: CurvanceService | null = null;
+  private wallet = { address: config.wallet.address };
 
   constructor() {
     super();
@@ -77,6 +80,7 @@ class LLMService extends BaseService {
     if (gptDecision.action === deepseekDecision.action) {
       return {
         action: gptDecision.action,
+        shouldExecute: gptDecision.action === 'BUY' || gptDecision.action === 'SELL',
         reasoning: {
           marketCondition: `GPT & DeepSeek Agree: ${gptDecision.reasoning.marketCondition}`,
           technicalAnalysis: `Consensus: ${gptDecision.reasoning.technicalAnalysis}`,
@@ -89,6 +93,7 @@ class LLMService extends BaseService {
     // If they disagree, default to more conservative action
     return {
       action: 'WAIT',
+      shouldExecute: false,
       reasoning: {
         marketCondition: 'Mixed signals between GPT and DeepSeek',
         technicalAnalysis: `GPT suggests ${gptDecision.action}, DeepSeek suggests ${deepseekDecision.action}`,
@@ -153,7 +158,7 @@ class LLMService extends BaseService {
     return 'LOW';
   }
 
-  public async makeDecision(params?: Partial<MarketDataParams>) {
+  public async makeDecision(params: Partial<MarketDataParams>) {
     try {
       const timeRanges = getTimeRanges();
       const pair = 'BTC_USD';
@@ -164,28 +169,481 @@ class LLMService extends BaseService {
         symbol: _.replace(pair, /_/g, ''),
       };
 
-      const data = await this.marketDataService.getMarketData(marketDataParams);
-      const indicators = this.calculateIndicators(data);
-      const decision = await this.getCollectiveDecision(indicators);
-      const decisionHistory = await DecisionHistory.create({
-        decision,
-      });
-      decision.id = decisionHistory.id;
+      // Get both trading and lending market data
+      const [tradingMarketData, curvanceMarketData] = await Promise.all([
+        this.marketDataService.getMarketData(marketDataParams),
+        this.curvanceService.getMarketData()
+      ]);
 
-      // Execute trade if decision is BUY or SELL
-      if (decision.action === 'BUY' || decision.action === 'SELL') {
-        await this.handleTradeSignal(decision, pair);
-      }
+      // Get trading decision
+      const tradingIndicators = this.calculateIndicators(tradingMarketData);
+      const tradingDecision = await this.getCollectiveDecision(tradingIndicators);
+
+      // Get Curvance decision
+      const curvanceDecision = await this.getAIDecision({
+        trading: tradingMarketData,
+        lending: curvanceMarketData
+      });
+
+      // Execute both decisions if needed
+      const executions = await Promise.allSettled([
+        // Execute trade if shouldExecute is true
+        tradingDecision.shouldExecute 
+          ? this.handleTradeSignal(tradingDecision, pair)
+          : Promise.resolve(),
+          
+        // Execute Curvance actions if shouldExecute is true
+        curvanceDecision.shouldExecute && curvanceDecision.actions?.length > 0
+          ? this.executeCurvanceDecision(curvanceDecision, curvanceMarketData)
+          : Promise.resolve()
+      ]);
+
+      // Save combined decision history
+      const decisionHistory = await DecisionHistory.create({
+        decision: {
+          trading: tradingDecision,
+          curvance: {
+            ...curvanceDecision,
+            executionResults: executions[1].status === 'fulfilled' ? executions[1].value : null
+          }
+        },
+      });
 
       return {
         timestamp: new Date().toISOString(),
         pair,
-        indicators,
-        recommendation: decision,
+        indicators: {
+          trading: tradingIndicators,
+          lending: this.formatLendingMetrics(curvanceMarketData)
+        },
+        recommendations: {
+          trading: {
+            ...tradingDecision,
+            id: decisionHistory.id
+          },
+          curvance: {
+            ...curvanceDecision,
+            id: decisionHistory.id
+          }
+        }
       };
     } catch (error) {
-      logger.error({ message: `Error in LLM service: ${error.message}`, labels: { origin: 'LLMService' } });
+      logger.error({ 
+        message: `Error in LLM service: ${error.message}`, 
+        labels: { origin: 'LLMService' } 
+      });
       throw error;
+    }
+  }
+
+  private async getAIDecision(marketData: any) {
+    try {
+      const lendingMetrics = this.formatLendingMetrics(marketData.lending);
+
+      const prompt = `
+        Analyze the following Curvance lending market data and recommend optimal lending/borrowing strategies:
+        
+        Market Data:
+        ${JSON.stringify(lendingMetrics, null, 2)}
+        
+        Consider these key factors:
+
+        1. Lending Opportunities:
+        - Compare interest rates across all tokens (WBTC, USDC, AUSD, LUSD)
+        - Evaluate supply/demand dynamics and utilization rates
+        - Assess stability and sustainability of yields
+        - Consider liquidity depth and withdrawal risks
+
+        2. Borrowing Opportunities:
+        - Identify lowest borrowing costs across tokens
+        - Calculate potential leverage ratios
+        - Evaluate liquidation risks based on collateral ratios
+        - Consider market volatility impact on positions
+
+        3. Interest Rate Arbitrage:
+        - Find profitable spreads between lending and borrowing rates
+        - Calculate net yield after fees and gas costs
+        - Consider position size impact on rates
+        - Evaluate sustainability of arbitrage opportunities
+
+        4. Risk Assessment:
+        - Market volatility and trend analysis
+        - Collateral health and liquidation thresholds
+        - Protocol utilization and liquidity risks
+        - Correlation between asset prices
+
+        Return a JSON response with:
+        {
+          "action": "LEND" | "BORROW" | "WITHDRAW" | "WAIT",
+          "token": "USDC" | "WBTC" | "aUSD" | "LUSD",
+          "amount": "number as string",
+          "reasoning": {
+            "marketAnalysis": "Detailed analysis of market conditions and opportunities",
+            "riskAssessment": "Comprehensive risk evaluation",
+            "yieldStrategy": "Expected returns and strategy rationale"
+          },
+          "actions": [{
+            "type": "DEPOSIT" | "WITHDRAW" | "BORROW",
+            "token": "string",
+            "amount": "string",
+            "recipient": "string",
+            "expectedYield": "string",
+            "liquidationRisk": "LOW" | "MEDIUM" | "HIGH"
+          }]
+        }
+
+        Prioritize:
+        1. Capital preservation over maximum yield
+        2. Sustainable yields over temporary rate spikes
+        3. Liquidity availability for position management
+        4. Risk-adjusted returns considering all factors
+      `;
+
+      // Get decisions from both models
+      const [gptResult, deepseekResult]: any[] = await Promise.allSettled([
+        this.getModelDecision(this.openai, config.ai.openai.model, {
+          lending: lendingMetrics,
+          prompt
+        }),
+        this.getModelDecision(this.deepseek, config.ai.deepseek.model, {
+          lending: lendingMetrics,
+          prompt
+        })
+      ]);
+
+      // Parse and validate decisions
+      const decision = this.parseCurvanceDecision(gptResult, deepseekResult);
+
+      // Set shouldExecute based on action type
+      decision.shouldExecute = decision.action !== 'WAIT' && decision.actions?.length > 0;
+
+      return decision;
+    } catch (error) {
+      logger.error({
+        message: 'Error getting Curvance decision',
+        error: error.message,
+        labels: { origin: 'LLMService' },
+      });
+      return {
+        action: 'WAIT',
+        shouldExecute: false,
+        confidence: 'LOW',
+        actions: [],
+        reasoning: {
+          marketAnalysis: 'Error occurred while getting decision',
+          riskAssessment: 'HIGH',
+          yieldStrategy: 'No strategy due to error'
+        }
+      };
+    }
+  }
+
+  private parseCurvanceDecision(gptResult: any, deepseekResult: any) {
+    try {
+      // Handle rejected promises
+      if (gptResult.status === 'rejected' && deepseekResult.status === 'rejected') {
+        return {
+          action: 'WAIT',
+          shouldExecute: false,
+          confidence: 'LOW',
+          actions: [],
+          reasoning: {
+            marketAnalysis: 'Both models failed to respond',
+            riskAssessment: 'HIGH'
+          }
+        };
+      }
+
+      // Parse successful responses
+      const gptDecision = gptResult.status === 'fulfilled' ? 
+        (typeof gptResult.value === 'string' ? JSON.parse(gptResult.value) : gptResult.value) : null;
+      const deepseekDecision = deepseekResult.status === 'fulfilled' ? 
+        (typeof deepseekResult.value === 'string' ? JSON.parse(deepseekResult.value) : deepseekResult.value) : null;
+
+      // If one model fails, use the other with medium confidence
+      if (!gptDecision) {
+        return {
+          ...deepseekDecision,
+          confidence: 'MEDIUM',
+          actions: deepseekDecision.actions || [],
+          shouldExecute: false
+        };
+      }
+
+      if (!deepseekDecision) {
+        return {
+          ...gptDecision,
+          confidence: 'MEDIUM',
+          actions: gptDecision.actions || [],
+          shouldExecute: false
+        };
+      }
+      
+      // If both agree on the action and token, merge their decisions
+      if (gptDecision.action === deepseekDecision.action) {
+        return {
+          action: gptDecision.action,
+          token: gptDecision.token,
+          confidence: 'HIGH',
+          shouldExecute: gptDecision.action !== 'WAIT',
+          reasoning: {
+            marketAnalysis: `GPT & DeepSeek Agree: ${gptDecision.reasoning.marketCondition || gptDecision.reasoning.marketAnalysis}`,
+            riskAssessment: gptDecision.reasoning.riskAssessment
+          },
+          // Ensure actions array exists
+          actions: [
+            ...(gptDecision.actions || []),
+            ...(deepseekDecision.actions || [])
+          ].map(action => ({
+            ...action,
+            amount: action?.amount?.toString() || '0',
+            recipient: action?.recipient || this.wallet.address
+          }))
+        };
+      }
+
+      // If they disagree, take the conservative approach
+      logger.info({
+        message: 'Models disagree on Curvance strategy',
+        gpt: gptDecision,
+        deepseek: deepseekDecision,
+        labels: { origin: 'LLMService' },
+      });
+
+      return {
+        action: 'WAIT',
+        shouldExecute: false,
+        confidence: 'LOW',
+        actions: [],
+        reasoning: {
+          marketAnalysis: 'Models disagree on market strategy',
+          riskAssessment: 'HIGH due to model disagreement'
+        }
+      };
+    } catch (error) {
+      logger.error({
+        message: 'Error parsing Curvance decision',
+        gpt: gptResult,
+        deepseek: deepseekResult,
+        error: error.message,
+        labels: { origin: 'LLMService' },
+      });
+      return {
+        action: 'WAIT',
+        shouldExecute: false,
+        confidence: 'LOW',
+        actions: [],
+        reasoning: {
+          marketAnalysis: 'Error parsing model responses',
+          riskAssessment: 'HIGH'
+        }
+      };
+    }
+  }
+
+  private formatLendingMetrics(lendingData: any) {
+    return {
+      interestRates: Object.entries(lendingData.interestRates).reduce((acc, [token, rate]) => {
+        acc[token] = `${(parseFloat(rate as string) * 100).toFixed(2)}%`;
+        return acc;
+      }, {}),
+      utilization: Object.keys(lendingData.liquidity).reduce((acc, token) => {
+        const { totalBorrows, totalSupply } = lendingData.liquidity[token];
+        acc[token] = (parseFloat(totalBorrows) / parseFloat(totalSupply) * 100).toFixed(2) + '%';
+        return acc;
+      }, {}),
+      availableLiquidity: Object.keys(lendingData.liquidity).reduce((acc, token) => {
+        const { totalSupply, totalBorrows } = lendingData.liquidity[token];
+        acc[token] = (parseFloat(totalSupply) - parseFloat(totalBorrows)).toString();
+        return acc;
+      }, {}),
+      userBalances: lendingData.balances,
+      collateralRatios: lendingData.collateralRatios,
+    };
+  }
+
+  private async executeCurvanceDecision(decision: any, currentMarketData: any) {
+    try {
+      // Validate decision before execution
+      if (!decision.shouldExecute || decision.action === 'WAIT' || !decision.actions?.length) {
+        return null;
+      }
+
+      // Validate market conditions haven't changed significantly
+      const isStillValid = this.validateCurvanceConditions(decision, currentMarketData);
+      if (!isStillValid) {
+        logger.warn({
+          message: 'Market conditions changed significantly, skipping Curvance execution',
+          labels: { origin: 'LLMService' },
+        });
+        return null;
+      }
+
+      // Execute actions and return results
+      const results = [];
+      for (const action of decision.actions) {
+        try {
+          let result;
+          switch (action.type) {
+            case 'DEPOSIT':
+              result = await this.curvanceService.depositFunds(
+                action.amount,
+                action.token
+              );
+              break;
+
+            case 'WITHDRAW':
+              result = await this.curvanceService.withdrawFunds(
+                action.amount,
+                action.token,
+                action.recipient || this.wallet.address
+              );
+              break;
+
+            case 'BORROW':
+              result = await this.curvanceService.borrowFunds(
+                action.amount,
+                action.token,
+                action.recipient || this.wallet.address
+              );
+              break;
+
+            default:
+              logger.warn({
+                message: `Unknown action type: ${action.type}`,
+                action,
+                labels: { origin: 'LLMService' },
+              });
+              continue;
+          }
+
+          results.push({
+            action,
+            success: true,
+            txHash: result.hash,
+          });
+
+          logger.info({
+            message: `Successfully executed ${action.type}`,
+            action,
+            txHash: result.hash,
+            labels: { origin: 'LLMService' },
+          });
+
+        } catch (error) {
+          logger.error({
+            message: `Failed to execute ${action.type}`,
+            action,
+            error: error.message,
+            labels: { origin: 'LLMService' },
+          });
+
+          results.push({
+            action,
+            success: false,
+            error: error.message,
+          });
+        }
+      }
+
+      // Update decision history with execution results
+      await DecisionHistory.update(
+        {
+          decision: {
+            ...decision,
+            executionResults: results,
+            executedAt: new Date().toISOString(),
+          },
+        },
+        {
+          where: {
+            id: decision.id
+          }
+        }
+      );
+
+      return results;
+    } catch (error) {
+      logger.error({
+        message: 'Error executing Curvance decision',
+        error: error.message,
+        labels: { origin: 'LLMService' },
+      });
+      return null;
+    }
+  }
+
+  private validateCurvanceConditions(decision: any, currentMarket: any): boolean {
+    try {
+      // Check if user has sufficient balances for the actions
+      for (const action of decision.actions) {
+        const token = action.token;
+        const amount = parseFloat(action.amount);
+
+        // For deposits and withdrawals, check user's balance
+        if (action.type === 'DEPOSIT') {
+          const balance = parseFloat(currentMarket.balances[token] || '0');
+          if (balance < amount) {
+            logger.warn({
+              message: `Insufficient balance for ${token} deposit`,
+              required: amount,
+              available: balance,
+              labels: { origin: 'LLMService' },
+            });
+            return false;
+          }
+        }
+
+        if (action.type === 'WITHDRAW') {
+          const pTokenBalance = parseFloat(currentMarket.balances[`p${token}`] || '0');
+          if (pTokenBalance < amount) {
+            logger.warn({
+              message: `Insufficient pToken balance for ${token} withdrawal`,
+              required: amount,
+              available: pTokenBalance,
+              labels: { origin: 'LLMService' },
+            });
+            return false;
+          }
+        }
+
+        // Check if interest rates haven't changed significantly
+        const originalRate = parseFloat(decision.marketData?.interestRates[token] || '0');
+        const currentRate = parseFloat(currentMarket.interestRates[token] || '0');
+        if (Math.abs(currentRate - originalRate) / originalRate > 0.1) {
+          logger.warn({
+            message: `Interest rate changed significantly for ${token}`,
+            original: originalRate,
+            current: currentRate,
+            labels: { origin: 'LLMService' },
+          });
+          return false;
+        }
+
+        // Check liquidity for withdrawals and borrows
+        if (action.type === 'WITHDRAW' || action.type === 'BORROW') {
+          const availableLiquidity = parseFloat(currentMarket.liquidity[token]?.totalSupply || '0') - 
+                                   parseFloat(currentMarket.liquidity[token]?.totalBorrows || '0');
+          if (availableLiquidity < amount) {
+            logger.warn({
+              message: `Insufficient liquidity for ${token}`,
+              required: amount,
+              available: availableLiquidity,
+              labels: { origin: 'LLMService' },
+            });
+            return false;
+          }
+        }
+      }
+
+      return true;
+    } catch (error) {
+      logger.error({
+        message: 'Error validating Curvance conditions',
+        error: error.message,
+        labels: { origin: 'LLMService' },
+      });
+      return false;
     }
   }
 
