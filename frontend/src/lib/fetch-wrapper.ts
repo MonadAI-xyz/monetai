@@ -11,11 +11,23 @@
 // APIs endpoint's baseUrl
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-export const fetchWrapper = async (
+type FetchWrapperOptions = RequestInit & {
+  baseUrl?: string; // Custom base URL for the request
+};
+
+type FetchWrapperResponse<T = unknown> = {
+  data?: T; // Response data
+  error?: string; // Error message
+  status?: number; // HTTP status code
+};
+
+export const fetchWrapper = async <T = unknown>(
   url: string, 
-  options: RequestInit, 
+  options: FetchWrapperOptions, 
   timeout: number = 120_000
-) => {
+): Promise<FetchWrapperResponse<T>> => {
+  const { baseUrl, ...restOptions } = options;
+
   // Control connection timeout
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
@@ -25,47 +37,53 @@ export const fetchWrapper = async (
   console.log({requestData: { url, options }});
 
   try {
-    const response = await fetch(`${API_BASE_URL}${url}`, {
-      ...options,
+    const response = await fetch(`${baseUrl || API_BASE_URL}${url}`, {
+      ...restOptions,
       signal: controller.signal,
       headers: {
-        // "Content-Type": "application/json",
-        ...(options.headers || {}),
+        "Content-Type": "application/json", // Default to JSON content type
+        ...(restOptions.headers || {}), // Merge custom headers
       },
     });
 
-    clearTimeout(timeoutId);
+    clearTimeout(timeoutId); // Clear the timeout if the request completes
 
     if (!response.ok) {
+      // Handle non-2xx responses
       // Access the body and convert it to JSON
-      const errorBody = await response.json();
+      const errorBody = await response.json().catch(() => ({})); // Safely parse error body
+      const errorMessage = errorBody?.message 
+        || `API Error (${response.status}): ${response.statusText}`;
+      
       console.log({errorBody});
 
-      throw new Error(`API Error (${response.status}): ${response.statusText} - ${errorBody?.message}`);
+      // throw new Error(`API Error (${response.status}): ${response.statusText} - ${errorBody?.message}`);
 
       // return { 
       //   status: response.status,
       //   error: errorBody?.message || `Fetch error: ${response.status} ${response.statusText}`,
       // };
+      return {
+        error: errorMessage,
+        status: response.status,
+      };
     }
 
-    const data = await response.json();
+    const data: T = await response.json(); // Parse response data
     console.log(data);
 
-    return data;
+    return data; // Return the parsed data
   } catch (error) {
-    // if ((error as Error).name === "AbortError") {
-    //   console.error("Request timed out");
-    //   return { error: "Request timed out." };
-    // }
+    clearTimeout(timeoutId); // Clear the timeout in case of an error
+
+    if ((error as Error).name === "AbortError") {
+      console.error("Request timed out");
+      return { error: "Request timed out." };
+    }
 
     // If a database error occurs, return a more specific error.
-    console.error(error);
-    // console.error('error:', (error as Error).message);
-    // return { 
-    //   status: 500,
-    //   error: "Something went wrong." 
-    // };
-    throw new Error(`Error: ${(error as Error).message}`);
+    console.error("Fetch error:", (error as Error).message);
+    return { status: 500, error: "Something went wrong." };
+    // throw new Error(`Error: ${(error as Error).message}`);
   }
 };

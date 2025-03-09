@@ -15,17 +15,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ITradingHistoryTable } from '@/types';
+import { format } from "date-fns"
 
-// This type is used to define the shape of our data.
-// You can use a Zod schema here if you want.
-export type Payment = {
-  id: string;
-  amount: number;
-  status: 'pending' | 'processing' | 'success' | 'failed';
-  email: string;
-};
 
-export const columns: ColumnDef<Payment>[] = [
+export const columns: ColumnDef<ITradingHistoryTable>[] = [
   {
     id: 'select',
     header: ({ table }) => (
@@ -50,33 +44,30 @@ export const columns: ColumnDef<Payment>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: 'status',
+    accessorKey: 'txDate',
     header: 'Tx. Date',
     cell: ({ row }) => (
-      <div className="capitalize">{row.getValue('status')}</div>
+      <div className="capitalize">
+        {row.getValue('txDate') ? format(row.getValue('txDate'), 'MMMM dd, yyyy') : '-'}
+      </div>
     ),
   },
   {
-    accessorKey: 'email',
+    accessorKey: 'txDescription',
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Tx. Description" />
     ),
   },
   {
-    accessorKey: 'amount',
-    header: () => <div className="text-right">Tx. Hash</div>,
-    cell: ({ row }) => {
-      const amount = parseFloat(row.getValue('amount'));
-      const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-      }).format(amount);
-
-      return <div className="text-right font-medium">{formatted}</div>;
-    },
+    accessorKey: 'txHash',
+    header: 'Tx. Hash',
+    cell: ({ row }) => (
+      <div className="font-medium">{row.getValue('txHash')}</div>
+    ),
   },
   {
     id: 'actions',
+    header: 'Action',
     enableHiding: false,
     cell: ({ row }) => {
       const payment = row.original;
