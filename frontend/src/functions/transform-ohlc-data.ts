@@ -15,10 +15,10 @@ export const transformOHLCData = (ohlcData: OHLCData) => {
   return ohlcData.t.map((timestamp, index) => ({
     x: new Date(timestamp * 1000), // Convert Unix timestamp to JavaScript Date
     y: [
-      ohlcData.o[index], // Open
-      ohlcData.h[index], // High
-      ohlcData.l[index], // Low
-      ohlcData.c[index], // Close
+      Number(ohlcData.o[index].toFixed(2)), // Open
+      Number(ohlcData.h[index].toFixed(2)), // High
+      Number(ohlcData.l[index].toFixed(2)), // Low
+      Number(ohlcData.c[index].toFixed(2)), // Close
     ],
   }));
 };

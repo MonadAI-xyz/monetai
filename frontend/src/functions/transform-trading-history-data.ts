@@ -7,7 +7,7 @@ export const transformTradingHistoryData = (
   return data.map((trade) => {
     const [tokenOut, tokenIn] = trade.pair.split("_"); // Split the pair into tokenOut and tokenIn
     // Generate description
-    const txDescription = `${trade.action} ${trade.amountIn} ${tokenOut} for ${trade.expectedAmountOut} ${tokenIn}.`;
+    const txDescription = `${trade.action} ${trade.expectedAmountOut} ${tokenOut} for ${trade.amountIn} ${tokenIn}.`;
 
     return {
       id: trade.id,
