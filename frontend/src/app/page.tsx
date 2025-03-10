@@ -2,6 +2,7 @@
 
 import ERC20BalancePieChart from '@/components/charts/erc20-token-balance-chart';
 import OHLCPriceMetricsChart from '@/components/charts/ohlc-price-metrics-chart';
+import DAOGovernance from '@/components/dao-governance';
 import Header from '@/components/header';
 import PortfolioOverview from '@/components/portfolio-overview';
 import { columns, DataTable } from '@/components/ui/data-table';
@@ -37,7 +38,7 @@ export default async function Page() {
             <ERC20BalancePieChart />
           </div>
           <div className="bg-muted/50 rounded-xl p-4">
-            <h3 className="text-lg font-semibold mb-6">DAO GOV - Active proposals</h3>
+            <DAOGovernance />
           </div>
           <div className="bg-muted/50 rounded-xl p-4">
             <OHLCPriceMetricsChart ohlcData={ohlcPriceMetrics} />
