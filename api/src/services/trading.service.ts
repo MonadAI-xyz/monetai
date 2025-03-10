@@ -8,6 +8,7 @@ import { logger } from '@utils/logger';
 import { HttpError } from '@exceptions/http/HttpError';
 import { sequelizeQueryBuilder } from '@utils/utils';
 import { TradingHistory } from '@models';
+import { GetContractReturnType } from 'viem';
 
 class TradingService extends BaseService {
   private client;
@@ -38,8 +39,8 @@ class TradingService extends BaseService {
 
     // Check balances first
     const balance = await this.getTokenBalance(sellToken);
-    const tokenContract = getContract({
-      address: sellToken,
+    const tokenContract: any = getContract({
+      address: sellToken as `0x${string}`,
       abi: erc20Abi,
       client: this.client,
     });
@@ -161,8 +162,8 @@ class TradingService extends BaseService {
   }
 
   async getTokenBalance(tokenAddress: string): Promise<bigint> {
-    const tokenContract = getContract({
-      address: tokenAddress,
+    const tokenContract: any = getContract({
+      address: tokenAddress as `0x${string}`,
       abi: erc20Abi,
       client: this.client,
     });
@@ -170,12 +171,12 @@ class TradingService extends BaseService {
     return await tokenContract.read.balanceOf([this.client.account.address]);
   }
 
-  async calculateTradeAmount(action: 'buy' | 'sell', riskLevel: 'HIGH' | 'LOW'): Promise<string> {
+  async calculateTradeAmount(action: 'buy' | 'sell', riskLevel: 'HIGH' | 'LOW', pair: string = 'BTCUSD'): Promise<string> {
     const tokenAddress = action === 'buy' ? config.contracts.USDT : config.contracts.WBTC;
     const balance = await this.getTokenBalance(tokenAddress);
 
-    const tokenContract = getContract({
-      address: tokenAddress,
+    const tokenContract: any = getContract({
+      address: tokenAddress as `0x${string}`,
       abi: erc20Abi,
       client: this.client,
     });
@@ -191,8 +192,8 @@ class TradingService extends BaseService {
   }
 
   private async getTokenDecimals(tokenAddress: string): Promise<number> {
-    const contract = getContract({
-      address: tokenAddress,
+    const contract: any = getContract({
+      address: tokenAddress as `0x${string}`,
       abi: erc20Abi,
       client: this.client,
     });
@@ -210,7 +211,7 @@ class TradingService extends BaseService {
     await TradingHistory.create({ ...tradeLog, message });
   }
 
-  async checkTradeViability(action: 'buy' | 'sell'): Promise<{
+  async checkTradeViability(action: 'buy' | 'sell', pair: string = 'BTCUSD'): Promise<{
     viable: boolean;
     balance: string;
     token: string;
@@ -219,8 +220,8 @@ class TradingService extends BaseService {
     const tokenAddress = action === 'buy' ? config.contracts.USDT : config.contracts.WBTC;
     const balance = await this.getTokenBalance(tokenAddress);
 
-    const tokenContract = getContract({
-      address: tokenAddress,
+    const tokenContract: any = getContract({
+      address: tokenAddress as `0x${string}`,
       abi: erc20Abi,
       client: this.client,
     });

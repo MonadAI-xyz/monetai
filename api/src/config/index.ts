@@ -93,6 +93,8 @@ const cfg = {
   contracts: {
     USDT: '0x88b8E2161DEDC77EF4ab7585569D2415a1C1055D',
     WBTC: '0xcf5a6076cfa32686c0Df13aBaDa2b40dec133F1d',
+    WETH: '0xB5a30b0FDc5EA94A52fDc42e3E9760Cb8449Fb37',
+    WSOL: '0x5387C85A4965769f6B0Df430638a1388493486F1',
     PERMIT2: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
   },
   zeroEx: {
@@ -102,6 +104,31 @@ const cfg = {
   chain: {
     rpcUrl: process.env.RPC_URL,
     privateKey: process.env.PRIVATE_KEY,
+  },
+  curvance: {
+    contracts: {
+      universalBalance: process.env.CURVANCE_UNIVERSAL_BALANCE_ADDRESS,
+      eTokens: {
+        USDC: process.env.CURVANCE_ETOKEN_USDC_ADDRESS,
+        WBTC: process.env.CURVANCE_ETOKEN_WBTC_ADDRESS,
+        aUSD: process.env.CURVANCE_ETOKEN_AUSD_ADDRESS,
+      },
+      pTokens: {
+        LUSD: process.env.CURVANCE_PTOKEN_LUSD_ADDRESS,
+        USDC: process.env.CURVANCE_PTOKEN_USDC_ADDRESS,
+        WBTC: process.env.CURVANCE_PTOKEN_WBTC_ADDRESS,
+      },
+    },
+    decimals: {
+      USDC: 6,
+      WBTC: 8,
+      aUSD: 18,
+      LUSD: 18,
+    },
+    delegateAddress: process.env.WALLET_ADDRESS,
+  },
+  wallet: {
+    address: process.env.WALLET_ADDRESS,
   },
 };
 
