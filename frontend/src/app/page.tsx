@@ -1,5 +1,6 @@
 // import { Metadata } from 'next';
 
+import ERC20BalancePieChart from '@/components/charts/erc20-token-balance-chart';
 import OHLCPriceMetricsChart from '@/components/charts/ohlc-price-metrics-chart';
 import Header from '@/components/header';
 import PortfolioOverview from '@/components/portfolio-overview';
@@ -31,7 +32,9 @@ export default async function Page() {
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
         <div className="grid auto-rows-min gap-4 md:grid-cols-3">
           <div className="bg-muted/50 rounded-xl p-4">
-            <PortfolioOverview />
+            <h3 className="text-lg font-semibold mb-6">Portfolio Overview</h3>
+            {/* <PortfolioOverview /> */}
+            <ERC20BalancePieChart />
           </div>
           <div className="bg-muted/50 rounded-xl p-4">
             <h3 className="text-lg font-semibold mb-6">DAO GOV - Active proposals</h3>
