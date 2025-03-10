@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ITradingHistoryTable } from '@/types';
+import { format } from "date-fns"
 
 
 export const columns: ColumnDef<ITradingHistoryTable>[] = [
@@ -46,7 +47,9 @@ export const columns: ColumnDef<ITradingHistoryTable>[] = [
     accessorKey: 'txDate',
     header: 'Tx. Date',
     cell: ({ row }) => (
-      <div className="capitalize">{row.getValue('txDate')}</div>
+      <div className="capitalize">
+        {row.getValue('txDate') ? format(row.getValue('txDate'), 'MMMM dd, yyyy') : '-'}
+      </div>
     ),
   },
   {
