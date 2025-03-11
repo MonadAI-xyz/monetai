@@ -3,7 +3,7 @@
 import { fetchWrapper } from "../fetch-wrapper";
 
 import { generateQueryParamsString } from "@/functions";
-import { ITradingHistoryData } from "@/types";
+import { IQueryData, ITradingHistoryData } from "@/types";
 
 type TradingHistoryResponse = {
   count: number; // Total number of records
@@ -21,7 +21,7 @@ export const getTradingHistory = async () => {
 }
 
 // Get OHLC price data for a specific asset within a time range
-export const getOHLCPriceMetrics = async () => {
+export const getOHLCPriceMetrics = async (queryData: IQueryData) => {
   const now = Math.floor(Date.now() / 1000); // Current Unix timestamp in seconds
   const oneWeekAgo = now - (7 * 24 * 60 * 60); // 7 days ago in seconds
   console.log({oneWeekAgo});
@@ -30,7 +30,7 @@ export const getOHLCPriceMetrics = async () => {
     from: oneWeekAgo, // Unix timestamp in seconds
     to: now,
     resolution: 60,
-    symbol: 'BTCUSD',
+    symbol: queryData.symbol,
   };
 
   // Get query params string
