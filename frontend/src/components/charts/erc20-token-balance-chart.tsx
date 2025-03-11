@@ -1,10 +1,11 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { Abi, formatUnits } from "viem";
 import { useAccount, useChainId } from "wagmi";
 import { readContracts } from "wagmi/actions";
-import dynamic from "next/dynamic";
+
 import { wagmiConfig } from "@/config/wagmi";
 
 // Dynamically import ApexCharts to avoid SSR issues
@@ -40,7 +41,7 @@ const tokens: Token[] = [
   { symbol: "WSOL", address: "0x5387C85A4965769f6B0Df430638a1388493486F1" },
 ];
 
-const ERC20BalancePieChart = () => {
+export default function ERC20BalanceChart() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const [balances, setBalances] = useState<{ symbol: string; balance: number }[]>([]);
@@ -76,7 +77,7 @@ const ERC20BalancePieChart = () => {
         // Format balances
         const formattedBalances = tokens.map((token, index) => {
           const decimals = (decimalsData[index]?.result ?? 18) as number;
-          const rawBalance = (balancesData[index]?.result ?? BigInt(20)) as bigint;
+          const rawBalance = (balancesData[index]?.result ?? BigInt(0)) as bigint;
           return {
             symbol: token.symbol,
             balance: parseFloat(formatUnits(rawBalance, decimals)), // Convert BigInt to float
@@ -92,7 +93,7 @@ const ERC20BalancePieChart = () => {
     };
 
     fetchBalances();
-  }, [address, isConnected, tokens, chainId]);
+  }, [address, isConnected, chainId]);
 
   if (!isConnected) return <div>Connect your wallet to see the balance chart.</div>;
   if (loading) return <div>Loading balances...</div>;
@@ -100,13 +101,16 @@ const ERC20BalancePieChart = () => {
   // Chart options
   const chartOptions: ApexCharts.ApexOptions = {
     chart: {
-      type: "pie",
+      type: "donut",
       background: "transparent", // Transparent background
       foreColor: "#ffffff", // Light text color
     },
     labels: balances.map((t) => t.symbol),
     theme: {
       mode: "dark", // Enable dark theme
+      monochrome: {
+        enabled: true,
+      },
     },
   };
 
@@ -115,9 +119,7 @@ const ERC20BalancePieChart = () => {
   return (
     <div>
       <h2 className="text-lg font-bold">Token Balances</h2>
-      <Chart height={350} options={chartOptions} series={chartSeries} type="pie" />
+      <Chart height={350} options={chartOptions} series={chartSeries} type="donut" />
     </div>
   );
 };
-
-export default ERC20BalancePieChart;

@@ -30,7 +30,8 @@ export const getOHLCPriceMetrics = async () => {
     from: oneWeekAgo, // Unix timestamp in seconds
     to: now,
     resolution: 60,
-    symbol: 'BTCUSD',
+    // symbol: 'SOLUSD',
+    symbol: 'ETHUSD',
   };
 
   // Get query params string
