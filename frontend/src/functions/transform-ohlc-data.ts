@@ -12,7 +12,7 @@ import { OHLCData } from "@/types";
  * @returns Array
  */
 export const transformOHLCData = (ohlcData: OHLCData) => {
-  return ohlcData.t.map((timestamp, index) => ({
+  return ohlcData?.t?.map((timestamp, index) => ({
     x: new Date(timestamp * 1000), // Convert Unix timestamp to JavaScript Date
     y: [
       Number(ohlcData.o[index].toFixed(2)), // Open

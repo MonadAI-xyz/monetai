@@ -37,10 +37,10 @@ export default async function Page() {
             {/* <PortfolioOverview /> */}
             <ERC20BalancePieChart />
           </div>
-          <div className="bg-muted/50 rounded-xl p-4">
+          {/* <div className="bg-muted/50 rounded-xl p-4">
             <DAOGovernance />
-          </div>
-          <div className="bg-muted/50 rounded-xl p-4">
+          </div> */}
+          <div className="bg-muted/50 rounded-xl p-4 md:col-span-2">
             <OHLCPriceMetricsChart ohlcData={ohlcPriceMetrics} />
           </div>
         </div>
