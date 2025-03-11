@@ -2,7 +2,7 @@
 
 import ERC20BalancePieChart from '@/components/charts/erc20-token-balance-chart';
 import OHLCPriceMetricsChart from '@/components/charts/ohlc-price-metrics-chart';
-import DAOGovernance from '@/components/dao-governance';
+// import DAOGovernance from '@/components/dao-governance';
 import Header from '@/components/header';
 // import PortfolioOverview from '@/components/portfolio-overview';
 import { columns, DataTable } from '@/components/ui/data-table';
@@ -32,10 +32,10 @@ export default async function Page() {
             {/* <PortfolioOverview /> */}
             <ERC20BalancePieChart />
           </div>
-          <div className="bg-muted/50 rounded-xl p-4">
+          {/* <div className="bg-muted/50 rounded-xl p-4">
             <DAOGovernance />
-          </div>
-          <div className="bg-muted/50 rounded-xl p-4">
+          </div> */}
+          <div className="bg-muted/50 rounded-xl p-4 md:col-span-2">
             <OHLCPriceMetricsChart />
           </div>
         </div>
