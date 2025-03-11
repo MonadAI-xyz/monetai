@@ -4,11 +4,10 @@ import ERC20BalancePieChart from '@/components/charts/erc20-token-balance-chart'
 import OHLCPriceMetricsChart from '@/components/charts/ohlc-price-metrics-chart';
 import DAOGovernance from '@/components/dao-governance';
 import Header from '@/components/header';
-import PortfolioOverview from '@/components/portfolio-overview';
+// import PortfolioOverview from '@/components/portfolio-overview';
 import { columns, DataTable } from '@/components/ui/data-table';
 import { transformTradingHistoryData } from '@/functions/transform-trading-history-data';
-import { getOHLCPriceMetrics, getTradingHistory } from '@/lib/actions';
-import { OHLCData } from '@/types';
+import { getTradingHistory } from '@/lib/actions';
 
 // export const metadata: Metadata = {
 //   title: "Home",
@@ -22,10 +21,6 @@ export default async function Page() {
   const transformedData = response?.data?.count > 0
     ? transformTradingHistoryData(response.data.rows)
     : [];
-
-  // Fetch OHLC price metrics
-  const ohlcPriceMetrics = await getOHLCPriceMetrics() as OHLCData;
-  // console.log({ ohlcPriceMetrics })
 
   return (
     <main className="bg-background relative flex min-h-svh flex-1 flex-col">
@@ -41,7 +36,7 @@ export default async function Page() {
             <DAOGovernance />
           </div>
           <div className="bg-muted/50 rounded-xl p-4">
-            <OHLCPriceMetricsChart ohlcData={ohlcPriceMetrics} />
+            <OHLCPriceMetricsChart />
           </div>
         </div>
         <div className="bg-muted/50 min-h-[100vh] flex-1 rounded-xl p-4 md:min-h-min">
