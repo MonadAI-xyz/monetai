@@ -1,5 +1,10 @@
 // TODO - define `data` type here
-export function parseTradingData(data) {
+/**
+ * Transform decisions data to populate in Data Table
+ * @param data Array
+ * @returns Object
+ */
+export function transformDecisionsData(data) {
   if (!data) return null;
 
   const tradingDecisions = [];
@@ -22,7 +27,9 @@ export function parseTradingData(data) {
     }
 
     if (decision.curvance) {
-      curvanceDecisions.push({ id, ...decision.curvance });
+      const {reasoning, ...restCurvance} = decision.curvance;
+      // Restructure data
+      curvanceDecisions.push({ id, ...restCurvance, ...reasoning });
     }
   });
 

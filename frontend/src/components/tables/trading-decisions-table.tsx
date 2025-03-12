@@ -61,11 +61,7 @@ export const columns: ColumnDef<DecisionsTradingTable>[] = [
   {
     accessorKey: 'pair',
     header: 'Pair',
-    cell: ({ row }) => (
-      <div className="capitalize">
-        {row.getValue('pair') || '-'}
-      </div>
-    ),
+    cell: ({ row }) => row.getValue('pair') || '-',
   },
   // {
   //   accessorKey: 'action',
@@ -76,23 +72,17 @@ export const columns: ColumnDef<DecisionsTradingTable>[] = [
   {
     accessorKey: 'action',
     header: 'Action',
-    cell: ({ row }) => (
-      <div className="font-medium">{row.getValue('action')}</div>
-    ),
+    cell: ({ row }) => row.getValue('action'),
   },
   {
     accessorKey: 'pairSelection',
     header: 'Pair Selection',
-    cell: ({ row }) => (
-      <div className="font-medium">{row.getValue('pairSelection')}</div>
-    ),
+    cell: ({ row }) => row.getValue('pairSelection'),
   },
   {
     accessorKey: 'riskAssessment',
     header: 'Risk Assessment',
-    cell: ({ row }) => (
-      <div className="font-medium">{row.getValue('riskAssessment')}</div>
-    ),
+    cell: ({ row }) => row.getValue('riskAssessment'),
   },
   // {
   //   accessorKey: 'marketCondition',
@@ -104,10 +94,9 @@ export const columns: ColumnDef<DecisionsTradingTable>[] = [
   {
     accessorKey: 'technicalAnalysis',
     header: 'Technical Analysis',
-    cell: ({ row }) => (
-      <div className="font-medium">
-        {replaceMultipleWords(row.getValue('technicalAnalysis'), { "gpt": "", "DeepSeek": "" })}
-      </div>
+    cell: ({ row }) => replaceMultipleWords(
+      row.getValue('technicalAnalysis'),
+      { "gpt": "", "DeepSeek": "" }
     ),
   },
   // {
@@ -120,9 +109,7 @@ export const columns: ColumnDef<DecisionsTradingTable>[] = [
   {
     accessorKey: 'confidence',
     header: 'Confidence',
-    cell: ({ row }) => (
-      <div className="font-medium">{row.getValue('confidence')}</div>
-    ),
+    cell: ({ row }) => row.getValue('confidence'),
   },
   {
     id: 'actions',
@@ -156,7 +143,7 @@ export const columns: ColumnDef<DecisionsTradingTable>[] = [
   },
 ];
 
-export default function DecisionsHistoryTable({ data }) {
+export default function TradingDecisionsTable({ data }) {
   console.log('Trading: ', data);
   return (
     <>
