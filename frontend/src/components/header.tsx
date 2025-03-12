@@ -30,7 +30,7 @@ const menuItems: INavigationMenuItem[] = [
   },
   {
     title: 'Lending',
-    href: '#',
+    href: '/lending',
   },
   {
     title: 'DAO Governance',
