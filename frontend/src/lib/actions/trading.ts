@@ -20,6 +20,16 @@ export const getTradingHistory = async () => {
   return response;
 }
 
+// Get decisions
+export const getDecisions = async () => {
+  // Send request
+  const response = await fetchWrapper<TradingHistoryResponse>('/api/llms/decisions', {
+    method: "GET",
+  });
+
+  return response;
+}
+
 // Get OHLC price data for a specific asset within a time range
 export const getOHLCPriceMetrics = async (queryData: IQueryData) => {
   const now = Math.floor(Date.now() / 1000); // Current Unix timestamp in seconds

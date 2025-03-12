@@ -29,11 +29,13 @@ import {
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  title?: string;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  title,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -70,7 +72,7 @@ export function DataTable<TData, TValue>({
             table.getColumn('email')?.setFilterValue(event.target.value)
           }
         /> */}
-        <h1 className="font-semibold tracking-tight text-xl">MonetAI Tx. History</h1>
+        {title && <h1 className="font-semibold tracking-tight text-xl">{title}</h1>}
         <DataTableViewOptions table={table} />
       </div>
       <div className="rounded-md border">
