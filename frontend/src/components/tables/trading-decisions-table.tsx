@@ -1,13 +1,16 @@
 'use client';
 
+
 import { CheckedState } from '@radix-ui/react-checkbox';
 import { ColumnDef } from '@tanstack/react-table';
-import { format } from "date-fns"
 import { MoreHorizontal } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { DataTableColumnHeader } from '@/components/ui/data-table';
+import {
+  DataTable,
+  // DataTableColumnHeader
+} from '@/components/ui/data-table';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,10 +19,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ITradingHistoryTable } from '@/types';
+import { replaceMultipleWords } from '@/functions';
+// import { Input } from '@/components/ui/input';
 
+type DecisionsTradingTable = {
+  id: string;
+  pair: string;
+  action: string;
+  pairSelection: string;
+  riskAssessment: string;
+  marketCondition: string;
+  technicalAnalysis: string;
+  modelAgreement: string;
+  confidence: string;
+};
 
-export const columns: ColumnDef<ITradingHistoryTable>[] = [
+export const columns: ColumnDef<DecisionsTradingTable>[] = [
   {
     id: 'select',
     header: ({ table }) => (
@@ -44,30 +59,61 @@ export const columns: ColumnDef<ITradingHistoryTable>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: 'txDate',
-    header: 'Tx. Date',
-    cell: ({ row }) => (
-      <div className="capitalize">
-        {row.getValue('txDate') ? format(row.getValue('txDate'), 'MMMM dd, yyyy') : '-'}
-      </div>
-    ),
+    accessorKey: 'pair',
+    header: 'Pair',
+    cell: ({ row }) => row.getValue('pair') || '-',
+  },
+  // {
+  //   accessorKey: 'action',
+  //   header: ({ column }) => (
+  //     <DataTableColumnHeader column={column} title="Action" />
+  //   ),
+  // },
+  {
+    accessorKey: 'action',
+    header: 'Action',
+    cell: ({ row }) => row.getValue('action'),
   },
   {
-    accessorKey: 'txDescription',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Tx. Description" />
-    ),
+    accessorKey: 'pairSelection',
+    header: 'Pair Selection',
+    cell: ({ row }) => row.getValue('pairSelection'),
   },
   {
-    accessorKey: 'txHash',
-    header: 'Tx. Hash',
-    cell: ({ row }) => (
-      <div className="font-medium">{row.getValue('txHash')}</div>
+    accessorKey: 'riskAssessment',
+    header: 'Risk Assessment',
+    cell: ({ row }) => row.getValue('riskAssessment'),
+  },
+  // {
+  //   accessorKey: 'marketCondition',
+  //   header: 'Market Condition',
+  //   cell: ({ row }) => (
+  //     <div className="font-medium">{row.getValue('marketCondition')}</div>
+  //   ),
+  // },
+  {
+    accessorKey: 'technicalAnalysis',
+    header: 'Technical Analysis',
+    cell: ({ row }) => replaceMultipleWords(
+      row.getValue('technicalAnalysis'),
+      { "gpt": "", "DeepSeek": "" }
     ),
+  },
+  // {
+  //   accessorKey: 'modelAgreement',
+  //   header: 'Model Agreement',
+  //   cell: ({ row }) => (
+  //     <div className="font-medium">{row.getValue('modelAgreement')}</div>
+  //   ),
+  // },
+  {
+    accessorKey: 'confidence',
+    header: 'Confidence',
+    cell: ({ row }) => row.getValue('confidence'),
   },
   {
     id: 'actions',
-    header: 'Action',
+    // header: 'Action',
     enableHiding: false,
     cell: ({ row }) => {
       const payment = row.original;
@@ -96,3 +142,12 @@ export const columns: ColumnDef<ITradingHistoryTable>[] = [
     },
   },
 ];
+
+export default function TradingDecisionsTable({ data }) {
+  console.log('Trading: ', data);
+  return (
+    <>
+      <DataTable columns={columns} data={data} />
+    </>
+  );
+}
