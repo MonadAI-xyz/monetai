@@ -1,6 +1,8 @@
 import { Metadata } from "next";
 
 import DAOGovernance from "@/components/dao-governance";
+import DAOVotingStats from "@/components/dao-voting-stats";
+import DAOProposalOverview from "@/components/dao-proposal-overview";
 import Header from "@/components/header";
 
 export const metadata: Metadata = {
@@ -13,10 +15,9 @@ export default function Page() {
       <Header />
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
         <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-          {/* Left Section (Voting Stats or Community Polls) */}
+          {/* Left Section (Voting Stats) */}
           <div className="bg-muted/50 rounded-xl p-6">
-            <h3 className="text-lg font-semibold mb-4">Voting Stats</h3>
-            <p className="text-sm text-gray-400">Total votes, participation rate, etc.</p>
+            <DAOVotingStats />
           </div>
 
           {/* Center Section (Main DAO Governance Panel) */}
@@ -24,10 +25,9 @@ export default function Page() {
             <DAOGovernance />
           </div>
 
-          {/* Right Section (Other DAO Features) */}
+          {/* Right Section (Proposal Overview) */}
           <div className="bg-muted/50 rounded-xl p-6">
-            <h3 className="text-lg font-semibold mb-4">DAO Proposals</h3>
-            <p className="text-sm text-gray-400">View all past and active proposals.</p>
+            <DAOProposalOverview />
           </div>
         </div>
       </div>
