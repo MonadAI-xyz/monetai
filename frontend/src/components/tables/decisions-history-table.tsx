@@ -19,6 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { replaceMultipleWords } from '@/functions';
 // import { Input } from '@/components/ui/input';
 
 type DecisionsTradingTable = {
@@ -104,7 +105,9 @@ export const columns: ColumnDef<DecisionsTradingTable>[] = [
     accessorKey: 'technicalAnalysis',
     header: 'Technical Analysis',
     cell: ({ row }) => (
-      <div className="font-medium">{row.getValue('technicalAnalysis')}</div>
+      <div className="font-medium">
+        {replaceMultipleWords(row.getValue('technicalAnalysis'), { "gpt": "", "DeepSeek": "" })}
+      </div>
     ),
   },
   // {
