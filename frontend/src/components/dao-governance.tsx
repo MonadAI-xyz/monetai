@@ -78,9 +78,13 @@ interface ProposalVotes {
   abstainVotes: bigint;
 }
 
-// Add DEPLOY_BLOCK constant at the top with other constants
-const DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOY_BLOCK);
-const END_BLOCK = BigInt(process.env.NEXT_PUBLIC_END_BLOCK);
+// Update the DEPLOY_BLOCK and END_BLOCK constants
+const DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOY_BLOCK || "0");
+
+// We'll set END_BLOCK after fetching the current block if not defined
+let END_BLOCK: bigint | undefined = process.env.NEXT_PUBLIC_END_BLOCK 
+  ? BigInt(process.env.NEXT_PUBLIC_END_BLOCK) 
+  : undefined;
 
 // Update the formatBlockTime helper function
 const formatBlockTime = (timestamp: number) => {
@@ -223,6 +227,12 @@ export default function DAOGovernance() {
     const fetchProposals = async () => {
       setIsLoadingProposals(true);
       try {
+        // If END_BLOCK isn't defined, fetch current block number
+        if (!END_BLOCK) {
+          const currentBlock = await publicClient.getBlockNumber();
+          END_BLOCK = currentBlock;
+          console.log(`Using current block as END_BLOCK: ${END_BLOCK}`);
+        }
 
         const CHUNK_SIZE = BigInt(25); // Reduced to 25 blocks per request
         const events = [];
