@@ -1,8 +1,9 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// import { formatEther } from "ethers";
+
 import { Badge } from "@/components/ui/badge";
-import { formatEther } from "ethers";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const MOCK_PROPOSALS = {
   recent: [
@@ -45,7 +46,7 @@ export default function DAOProposalOverview() {
         <CardHeader>
           <CardTitle>DAO Proposals</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pb-6">
           <div className="space-y-4">
             <div>
               <h4 className="text-sm font-medium mb-2">Recent Proposals</h4>
@@ -61,8 +62,8 @@ export default function DAOProposalOverview() {
                       </div>
                       <Badge variant={
                         proposal.status === 'Active' ? 'default' :
-                        proposal.status === 'Pending' ? 'secondary' :
-                        'outline'
+                          proposal.status === 'Pending' ? 'secondary' :
+                            'outline'
                       }>
                         {proposal.status}
                       </Badge>
