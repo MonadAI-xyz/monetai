@@ -79,8 +79,8 @@ interface ProposalVotes {
 }
 
 // Add DEPLOY_BLOCK constant at the top with other constants
-const DEPLOY_BLOCK = BigInt("7583062");
-const END_BLOCK = BigInt("7583273");
+const DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOY_BLOCK);
+const END_BLOCK = BigInt(process.env.NEXT_PUBLIC_END_BLOCK);
 
 // Update the formatBlockTime helper function
 const formatBlockTime = (timestamp: number) => {

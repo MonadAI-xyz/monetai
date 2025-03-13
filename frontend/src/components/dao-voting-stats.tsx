@@ -9,9 +9,9 @@ import { Loader } from "@/components/ui/loader";
 import { Progress } from "@/components/ui/progress";
 import { CONTRACTS } from '@/config/contracts';
 
-// Add at the top with other constants
-const DEPLOY_BLOCK = BigInt("7583062");
-const END_BLOCK = BigInt("7583273");
+// Replace the hard-coded constants
+const DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOY_BLOCK);
+const END_BLOCK = BigInt(process.env.NEXT_PUBLIC_END_BLOCK);
 
 type ProposalVotes = {
   forVotes: bigint;
