@@ -21,7 +21,7 @@ import { getDecisions } from '@/lib/actions';
 export default async function Page() {
   // Get decisions history
   const decisions = await getDecisions();
-  const { tradingDecisions, curvanceDecisions } = transformDecisionsData(decisions.data.rows);
+  const { tradingDecisions, curvanceDecisions } = transformDecisionsData(decisions?.data?.rows || []);
   // console.log("Trading Decisions:", tradingDecisions);
   // console.log("Curvance Decisions:", curvanceDecisions);
 

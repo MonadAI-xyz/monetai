@@ -1,59 +1,53 @@
 'use client';
 
-import { Bold } from 'lucide-react';
+import {Bold} from 'lucide-react';
 import Link from 'next/link';
-import { toast } from 'sonner';
+import {toast} from 'sonner';
 
-import { AccordionDemo } from '@/components/demo/accordion-demo';
-import { AlertDemo } from '@/components/demo/alert-demo';
-import { AlertDialogDemo } from '@/components/demo/alert-dialog-demo';
-import { AspectRatioDemo } from '@/components/demo/aspect-ratio-demo';
-import { AvatarDemo } from '@/components/demo/avatar-demo';
-import { BadgeDemo } from '@/components/demo/badge-demo';
-import { BreadcrumbDemo } from '@/components/demo/breadcrumb-demo';
-import { ButtonDemo } from '@/components/demo/button-demo';
-import { CalendarDemo } from '@/components/demo/calendar-demo';
-import { CardDemo } from '@/components/demo/card-demo';
-import { CarouselDemo } from '@/components/demo/carousel-demo';
-import { ChartSection } from '@/components/demo/chart-section';
-import { CheckboxDemo } from '@/components/demo/checkbox-demo';
-import { CollapsibleDemo } from '@/components/demo/collapsible-demo';
-import { ComboboxDemo } from '@/components/demo/combobox-demo';
-import { CommandDialogDemo } from '@/components/demo/command-demo';
-import { ContextMenuDemo } from '@/components/demo/context-menu-demo';
-import { DatePickerForm } from '@/components/demo/date-picker-form';
-import { DialogDemo } from '@/components/demo/dialog-demo';
-import { DrawerDemo } from '@/components/demo/drawer-demo';
-import { DropdownMenuDemo } from '@/components/demo/dropdown-menu-demo';
-import { FormInput } from '@/components/demo/form-input';
-import { HoverCardDemo } from '@/components/demo/hover-card-demo';
-import { InputOTPDemo } from '@/components/demo/input-otp-demo';
-import { MenubarDemo } from '@/components/demo/menubar-demo';
-import { NavigationMenuDemo } from '@/components/demo/navigation-menu-demo';
-import { PaginationDemo } from '@/components/demo/pagination-demo';
-import { ProgressDemo } from '@/components/demo/progress-demo';
-import { RadioGroupDemo } from '@/components/demo/radio-group-demo';
-import { ResizableDemo } from '@/components/demo/resizable-demo';
-import { ScrollAreaDemo } from '@/components/demo/scroll-area-demo';
-import { SeparatorDemo } from '@/components/demo/separator-demo';
-import { SheetDemo } from '@/components/demo/sheet-demo';
-import { SkeletonDemo } from '@/components/demo/skeleton-demo';
-import { SliderDemo } from '@/components/demo/slider-demo';
-import { SwitchDemo } from '@/components/demo/switch-demo';
-import { TableDemo } from '@/components/demo/table-demo';
-import { TabsDemo } from '@/components/demo/tabs-demo';
-import { ToggleGroupDemo } from '@/components/demo/toggle-group-demo';
-import { ModeToggle } from '@/components/demo/toggle-mode';
-import { TooltipDemo } from '@/components/demo/tooltip-demo';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import {AccordionDemo} from '@/components/demo/accordion-demo';
+import {AlertDemo} from '@/components/demo/alert-demo';
+import {AlertDialogDemo} from '@/components/demo/alert-dialog-demo';
+import {AspectRatioDemo} from '@/components/demo/aspect-ratio-demo';
+import {AvatarDemo} from '@/components/demo/avatar-demo';
+import {BadgeDemo} from '@/components/demo/badge-demo';
+import {BreadcrumbDemo} from '@/components/demo/breadcrumb-demo';
+import {ButtonDemo} from '@/components/demo/button-demo';
+import {CalendarDemo} from '@/components/demo/calendar-demo';
+import {CardDemo} from '@/components/demo/card-demo';
+import {CarouselDemo} from '@/components/demo/carousel-demo';
+import {ChartSection} from '@/components/demo/chart-section';
+import {CheckboxDemo} from '@/components/demo/checkbox-demo';
+import {CollapsibleDemo} from '@/components/demo/collapsible-demo';
+import {ContextMenuDemo} from '@/components/demo/context-menu-demo';
+import {DatePickerForm} from '@/components/demo/date-picker-form';
+import {DialogDemo} from '@/components/demo/dialog-demo';
+import {DrawerDemo} from '@/components/demo/drawer-demo';
+import {DropdownMenuDemo} from '@/components/demo/dropdown-menu-demo';
+import {FormInput} from '@/components/demo/form-input';
+import {HoverCardDemo} from '@/components/demo/hover-card-demo';
+import {InputOTPDemo} from '@/components/demo/input-otp-demo';
+import {MenubarDemo} from '@/components/demo/menubar-demo';
+import {NavigationMenuDemo} from '@/components/demo/navigation-menu-demo';
+import {PaginationDemo} from '@/components/demo/pagination-demo';
+import {ProgressDemo} from '@/components/demo/progress-demo';
+import {RadioGroupDemo} from '@/components/demo/radio-group-demo';
+import {ResizableDemo} from '@/components/demo/resizable-demo';
+import {ScrollAreaDemo} from '@/components/demo/scroll-area-demo';
+import {SeparatorDemo} from '@/components/demo/separator-demo';
+import {SheetDemo} from '@/components/demo/sheet-demo';
+import {SkeletonDemo} from '@/components/demo/skeleton-demo';
+import {SliderDemo} from '@/components/demo/slider-demo';
+import {SwitchDemo} from '@/components/demo/switch-demo';
+import {TableDemo} from '@/components/demo/table-demo';
+import {TabsDemo} from '@/components/demo/tabs-demo';
+import {ToggleGroupDemo} from '@/components/demo/toggle-group-demo';
+import {ModeToggle} from '@/components/demo/toggle-mode';
+import {TooltipDemo} from '@/components/demo/tooltip-demo';
+import {Button} from '@/components/ui/button';
+import {Checkbox} from '@/components/ui/checkbox';
+import {Input} from '@/components/ui/input';
+import {Label} from '@/components/ui/label';
+import {Popover, PopoverContent, PopoverTrigger,} from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -63,8 +57,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Toggle } from '@/components/ui/toggle';
+import {Textarea} from '@/components/ui/textarea';
+import {Toggle} from '@/components/ui/toggle';
 
 const ComponentsPage = () => {
   return (
@@ -164,17 +158,6 @@ const ComponentsPage = () => {
           <CollapsibleDemo />
         </div>
 
-        {/* Combobox */}
-        <div className="flex flex-col space-y-4">
-          <h4 className="text-lg font-medium">Combobox</h4>
-          <ComboboxDemo />
-        </div>
-
-        {/* Command */}
-        <div className="flex flex-col space-y-4">
-          <h4 className="text-lg font-medium">Command</h4>
-          <CommandDialogDemo />
-        </div>
 
         {/* Context Menu */}
         <div className="flex flex-col space-y-4">

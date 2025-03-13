@@ -15,7 +15,7 @@ export default async function Page() {
 
   // Tranform the fetched data if sxists, otherwise fallback to static data
   const transformedData = response?.data?.count > 0
-    ? transformTradingHistoryData(response.data.rows)
+    ? transformTradingHistoryData(response?.data?.rows || [])
     : [];
 
   return (
