@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { formatEther } from "ethers";
+// import { formatEther } from "ethers";
 
 const MOCK_STATS = {
   totalVotes: 10500, // 10,500 tokens total votes
@@ -28,7 +28,7 @@ export default function DAOVotingStats() {
         <CardHeader>
           <CardTitle>Voting Stats</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pb-6">
           <div className="space-y-4">
             <div>
               <h4 className="text-sm font-medium">Total Votes Cast</h4>
@@ -38,7 +38,7 @@ export default function DAOVotingStats() {
             <div>
               <h4 className="text-sm font-medium">Participation Rate</h4>
               <div className="space-y-2">
-                <Progress value={MOCK_STATS.participationRate} className="h-2" />
+                <Progress className="h-2" value={MOCK_STATS.participationRate} />
                 <p className="text-sm text-muted-foreground">{MOCK_STATS.participationRate}% of token holders</p>
               </div>
             </div>

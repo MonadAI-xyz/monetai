@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useAccount, useContractRead, useContractWrite } from 'wagmi';
-import { formatEther } from 'viem';
+import { useState } from 'react';
+import { toast } from 'sonner';
+// import { formatEther } from 'viem';
+import { useAccount } from 'wagmi';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -14,11 +16,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+// import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Progress } from '@/components/ui/progress';
-import { toast } from 'sonner';
+import { Textarea } from "@/components/ui/textarea";
 
 // Update MOCK_DATA in dao-governance.tsx
 const MOCK_DATA = {
@@ -76,7 +77,7 @@ export default function DAOGovernance() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedProposal, setSelectedProposal] = useState<string | null>(null);
+  // const [selectedProposal, setSelectedProposal] = useState<string | null>(null);
 
   // Use mock data instead of contract reads
   const votingDelay = MOCK_DATA.votingDelay;
@@ -91,7 +92,7 @@ export default function DAOGovernance() {
 
     try {
       setIsSubmitting(true);
-      
+
       // Mock proposal creation
       const newProposal = {
         id: (proposals.length + 1).toString(),
@@ -119,7 +120,7 @@ export default function DAOGovernance() {
   };
 
   const handleVote = (proposalId: string, voteType: VoteType) => {
-    setProposals(prevProposals => 
+    setProposals(prevProposals =>
       prevProposals.map(proposal => {
         if (proposal.id === proposalId) {
           const voteAmount = 1; // 1 token
@@ -147,7 +148,7 @@ export default function DAOGovernance() {
         <CardHeader>
           <CardTitle>DAO Governance</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pb-6">
           <div className="space-y-4">
             <div>
               <h4 className="text-sm font-medium">Voting Delay</h4>
@@ -155,7 +156,7 @@ export default function DAOGovernance() {
                 {`${Number(votingDelay)} days`}
               </p>
             </div>
-            
+
             <div>
               <h4 className="text-sm font-medium">Voting Period</h4>
               <p className="text-2xl font-bold">
@@ -197,8 +198,8 @@ export default function DAOGovernance() {
                   </div>
                   <DialogFooter>
                     <Button
-                      onClick={handleCreateProposal}
                       disabled={isSubmitting}
+                      onClick={handleCreateProposal}
                     >
                       {isSubmitting ? 'Creating...' : 'Create Proposal'}
                     </Button>
@@ -215,7 +216,7 @@ export default function DAOGovernance() {
         <CardHeader>
           <CardTitle>Proposals</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pb-6">
           <div className="space-y-6">
             {proposals.map((proposal) => (
               <Card key={proposal.id} className="p-4">
@@ -225,17 +226,16 @@ export default function DAOGovernance() {
                       <h3 className="font-semibold">{proposal.title}</h3>
                       <p className="text-sm text-muted-foreground">{proposal.description}</p>
                     </div>
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      proposal.status === 'Active' ? 'bg-green-100 text-green-800' :
+                    <span className={`px-2 py-1 text-xs rounded-full ${proposal.status === 'Active' ? 'bg-green-100 text-green-800' :
                       proposal.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
+                        'bg-gray-100 text-gray-800'
+                      }`}>
                       {proposal.status}
                     </span>
                   </div>
 
                   <div className="space-y-2">
-                    <Progress value={calculateProgress(proposal)} className="h-2" />
+                    <Progress className="h-2" value={calculateProgress(proposal)} />
                     <div className="flex justify-between text-sm">
                       <span>For: {proposal.forVotes} tokens</span>
                       <span>Against: {proposal.againstVotes} tokens</span>
@@ -245,26 +245,26 @@ export default function DAOGovernance() {
 
                   <div className="flex gap-2 mt-4">
                     <Button
+                      disabled={!address}
                       size="sm"
                       variant="outline"
                       onClick={() => handleVote(proposal.id, 'For')}
-                      disabled={!address}
                     >
                       Vote For
                     </Button>
                     <Button
+                      disabled={!address}
                       size="sm"
                       variant="outline"
                       onClick={() => handleVote(proposal.id, 'Against')}
-                      disabled={!address}
                     >
                       Vote Against
                     </Button>
                     <Button
+                      disabled={!address}
                       size="sm"
                       variant="outline"
                       onClick={() => handleVote(proposal.id, 'Abstain')}
-                      disabled={!address}
                     >
                       Abstain
                     </Button>
