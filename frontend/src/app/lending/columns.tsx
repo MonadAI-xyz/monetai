@@ -1,13 +1,11 @@
 'use client';
 
-import { CheckedState } from '@radix-ui/react-checkbox';
-import { ColumnDef } from '@tanstack/react-table';
-import { format } from "date-fns"
-import { MoreHorizontal } from 'lucide-react';
+import {ColumnDef} from '@tanstack/react-table';
+import {format} from "date-fns"
+import {MoreHorizontal} from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { DataTableColumnHeader } from '@/components/ui/data-table';
+import {Button} from '@/components/ui/button';
+import {DataTableColumnHeader} from '@/components/ui/data-table';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,29 +24,6 @@ type LendingHistoryTableProps = {
 
 
 export const columns: ColumnDef<LendingHistoryTableProps>[] = [
-  {
-    id: 'select',
-    header: ({ table }) => (
-      <Checkbox
-        aria-label="Select all"
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          ((table.getIsSomePageRowsSelected() &&
-            'indeterminate') as CheckedState)
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        aria-label="Select row"
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
   {
     accessorKey: 'txDate',
     header: 'Tx. Date',

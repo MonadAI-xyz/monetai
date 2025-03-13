@@ -5,33 +5,34 @@
  * @returns Object
  */
 export function transformDecisionsData(data) {
-  if (!data) return null;
+    if (!data) return null;
 
-  const tradingDecisions = [];
-  const curvanceDecisions = [];
+    const tradingDecisions = [];
+    const curvanceDecisions = [];
 
-  data?.forEach((row) => {
-    const { id, decision } = row;
-    
-    if (decision.trading) {
-      const {reasoning, ...restTrading} = decision.trading;
-      const {comparativeAnalysis, ...restReasoning} = reasoning;
+    data?.forEach((row) => {
+        const {id, decision, createdAt} = row;
 
-      // Restructure data
-      tradingDecisions.push({ 
-        id, 
-        ...restTrading,
-        ...restReasoning,
-        ...comparativeAnalysis
-      });
-    }
+        if (decision.trading) {
+            const {reasoning, ...restTrading} = decision.trading;
+            const {comparativeAnalysis, ...restReasoning} = reasoning;
 
-    if (decision.curvance) {
-      const {reasoning, ...restCurvance} = decision.curvance;
-      // Restructure data
-      curvanceDecisions.push({ id, ...restCurvance, ...reasoning });
-    }
-  });
+            // Restructure data
+            tradingDecisions.push({
+                id,
+                createdAt,
+                ...restTrading,
+                ...restReasoning,
+                ...comparativeAnalysis
+            });
+        }
 
-  return { tradingDecisions, curvanceDecisions };
+        if (decision.curvance) {
+            const {reasoning, ...restCurvance} = decision.curvance;
+            // Restructure data
+            curvanceDecisions.push({id, createdAt, ...restCurvance, ...reasoning});
+        }
+    });
+
+    return {tradingDecisions, curvanceDecisions};
 }
