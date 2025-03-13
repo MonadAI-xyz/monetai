@@ -9,9 +9,11 @@ import { Loader } from "@/components/ui/loader";
 import { Progress } from "@/components/ui/progress";
 import { CONTRACTS } from '@/config/contracts';
 
-// Add at the top with other constants
-const DEPLOY_BLOCK = BigInt("7583062");
-const END_BLOCK = BigInt("7583273");
+// Update the constants
+const DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOY_BLOCK || "0");
+let END_BLOCK: bigint | undefined = process.env.NEXT_PUBLIC_END_BLOCK 
+  ? BigInt(process.env.NEXT_PUBLIC_END_BLOCK) 
+  : undefined;
 
 type ProposalVotes = {
   forVotes: bigint;
@@ -49,7 +51,14 @@ export default function DAOVotingStats() {
       try {
         setIsLoading(true);
         
-        const CHUNK_SIZE = BigInt(90); // Small chunk size
+        // If END_BLOCK isn't defined, fetch current block number
+        if (!END_BLOCK) {
+          const currentBlock = await publicClient.getBlockNumber();
+          END_BLOCK = currentBlock;
+          console.log(`Using current block as END_BLOCK: ${END_BLOCK}`);
+        }
+        
+        const CHUNK_SIZE = BigInt(90);
         const events = [];
         
         for (let fromBlock = DEPLOY_BLOCK; fromBlock <= END_BLOCK;) {

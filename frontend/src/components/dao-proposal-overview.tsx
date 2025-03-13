@@ -10,8 +10,10 @@ import { Loader } from "@/components/ui/loader";
 import { CONTRACTS } from '@/config/contracts';
 
 // Constants
-const DEPLOY_BLOCK = BigInt("7583062");
-const END_BLOCK = BigInt("7583273");
+const DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOY_BLOCK || "0");
+let END_BLOCK: bigint | undefined = process.env.NEXT_PUBLIC_END_BLOCK 
+  ? BigInt(process.env.NEXT_PUBLIC_END_BLOCK) 
+  : undefined;
 
 type ProposalSummary = {
   id: bigint;
@@ -40,6 +42,13 @@ export default function DAOProposalOverview() {
   useEffect(() => {
     const fetchProposals = async () => {
       try {
+        // If END_BLOCK isn't defined, fetch current block number
+        if (!END_BLOCK) {
+          const currentBlock = await publicClient.getBlockNumber();
+          END_BLOCK = currentBlock;
+          console.log(`Using current block as END_BLOCK: ${END_BLOCK}`);
+        }
+
         const CHUNK_SIZE = BigInt(100);
         const events: ProposalCreatedLog[] = [];
         
