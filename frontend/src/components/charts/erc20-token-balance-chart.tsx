@@ -61,6 +61,7 @@ export default function ERC20BalanceChart() {
         // Read decimals and balances in a single batch request
         const [decimalsData, balancesData] = await Promise.all([
           readContracts(wagmiConfig, {
+            // @ts-expect-error - Temporarily suppressing deep instantiation issue
             contracts: tokens.map((token) => ({
               abi: erc20Abi as Abi,
               address: token.address,
