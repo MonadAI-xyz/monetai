@@ -125,6 +125,8 @@ export default function ERC20BalanceChart() {
       mode: "dark", // Enable dark theme
       monochrome: {
         enabled: true,
+        color: "#816cf9", // purple-500
+        shadeIntensity: 0.4,
       },
     },
   };
