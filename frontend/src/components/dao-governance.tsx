@@ -252,7 +252,7 @@ export default function DAOGovernance() {
                         // Add delay between requests
                         await new Promise(resolve => setTimeout(resolve, 200));
 
-                        // @ts-ignore
+                        // @ts-expect-error
                         const chunkEvents = await publicClient.getLogs({
                             address: CONTRACTS.GOVERNOR.address as `0x${string}`,
                             event: {
@@ -309,7 +309,7 @@ export default function DAOGovernance() {
                             startBlock: voteStart, // These are actually timestamps
                             endBlock: voteEnd
                         } =
-                            // @ts-ignore
+                            // @ts-expect-error
                             decodedData.args as {
                                 proposalId: bigint,
                                 description: string,
@@ -424,7 +424,7 @@ export default function DAOGovernance() {
         try {
             setIsSubmitting(true);
 
-            // @ts-ignore
+            // @ts-expect-error
             const result = await writeContract({
                 address: CONTRACTS.GOVERNOR.address as `0x${string}`,
                 abi: CONTRACTS.GOVERNOR.abi,
@@ -458,7 +458,7 @@ export default function DAOGovernance() {
             setPreparingVote(proposalId); // Show loader while preparing
             const support = voteType === 'For' ? 1 : voteType === 'Against' ? 0 : 2;
 
-            // @ts-ignore
+            // @ts-expect-error
             const _tx = await writeContract({
                 address: CONTRACTS.GOVERNOR.address as `0x${string}`,
                 abi: CONTRACTS.GOVERNOR.abi,
@@ -485,7 +485,7 @@ export default function DAOGovernance() {
         if (!address) return;
 
         try {
-            // @ts-ignore
+            // @ts-expect-error
             const _tx = await writeContract({
                 address: CONTRACTS.TOKEN.address as `0x${string}`,
                 abi: CONTRACTS.TOKEN.abi,
