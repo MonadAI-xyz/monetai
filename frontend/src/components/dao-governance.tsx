@@ -241,7 +241,7 @@ export default function DAOGovernance() {
                 }
 
                 const CHUNK_SIZE = BigInt(25); // Reduced to 25 blocks per request
-                const events = [];
+                let events = [];
 
                 for (let fromBlock = DEPLOY_BLOCK; fromBlock <= END_BLOCK;) {
                     let toBlock = fromBlock + CHUNK_SIZE > END_BLOCK ? END_BLOCK : fromBlock + CHUNK_SIZE - BigInt(1);
