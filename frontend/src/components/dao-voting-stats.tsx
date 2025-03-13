@@ -1,76 +1,179 @@
 "use client";
 
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { formatEther } from "ethers";
+import { formatEther } from "viem";
+import { usePublicClient } from 'wagmi';
+import { CONTRACTS } from '@/config/contracts';
+import { Loader } from "@/components/ui/loader";
 
-const MOCK_STATS = {
-  totalVotes: 10500, // 10,500 tokens total votes
-  totalProposals: 15,
-  activeProposals: 2,
-  participationRate: 72.5,
-  recentVotes: [
-    { date: '2024-03-10', votes: 2500 }, // 2500 tokens
-    { date: '2024-03-09', votes: 2300 }, // 2300 tokens
-    { date: '2024-03-08', votes: 1950 }, // 1950 tokens
-  ],
-  topVoters: [
-    { address: '0x1234...5678', votes: 4500 }, // 4500 tokens
-    { address: '0x8765...4321', votes: 3800 }, // 3800 tokens
-    { address: '0x9876...0123', votes: 3200 }, // 3200 tokens
-  ]
+// Add at the top with other constants
+const DEPLOY_BLOCK = BigInt("7583062");
+const END_BLOCK = BigInt("7583273");
+
+type ProposalVotes = {
+  forVotes: bigint;
+  againstVotes: bigint;
+  abstainVotes: bigint;
 };
 
 export default function DAOVotingStats() {
-  return (
-    <div className="space-y-4">
+  const [totalVotes, setTotalVotes] = useState<number>(0);
+  const [forPercentage, setForPercentage] = useState<number>(0);
+  const [againstPercentage, setAgainstPercentage] = useState<number>(0);
+  const [abstainPercentage, setAbstainPercentage] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const publicClient = usePublicClient();
+
+  useEffect(() => {
+    const fetchVotingStats = async () => {
+      try {
+        setIsLoading(true);
+        
+        const CHUNK_SIZE = BigInt(90); // Small chunk size
+        const events = [];
+        
+        for (let fromBlock = DEPLOY_BLOCK; fromBlock <= END_BLOCK;) {
+          let toBlock = fromBlock + CHUNK_SIZE > END_BLOCK ? END_BLOCK : fromBlock + CHUNK_SIZE - BigInt(1);
+          
+          try {
+            // Add delay between requests
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            const chunkEvents = await publicClient.getLogs({
+              address: CONTRACTS.GOVERNOR.address as `0x${string}`,
+              event: {
+                type: 'event',
+                name: 'ProposalCreated',
+                inputs: [
+                  { type: 'uint256', name: 'proposalId', indexed: false },
+                  { type: 'address', name: 'proposer', indexed: true },
+                  { type: 'address[]', name: 'targets', indexed: false },
+                  { type: 'uint256[]', name: 'values', indexed: false },
+                  { type: 'string[]', name: 'signatures', indexed: false },
+                  { type: 'bytes[]', name: 'calldatas', indexed: false },
+                  { type: 'uint256', name: 'startBlock', indexed: false },
+                  { type: 'uint256', name: 'endBlock', indexed: false },
+                  { type: 'string', name: 'description', indexed: false }
+                ]
+              },
+              fromBlock,
+              toBlock
+            }) as any;
+
+            events.push(...chunkEvents);
+            fromBlock = toBlock + BigInt(1); // Move to next chunk
+            
+          } catch (error: any) {
+            if (error?.message?.includes('eth_getLogs is limited')) {
+              // If we hit the limit, reduce chunk size and retry
+              const newChunkSize = BigInt(Number(toBlock - fromBlock) / 2); // Convert to number for division
+              toBlock = fromBlock + newChunkSize;
+              console.log(`Reducing chunk size, retrying with range ${fromBlock} to ${toBlock}`);
+              continue; // Retry with smaller chunk
+            } else {
+              console.log(`Error fetching chunk ${fromBlock}-${toBlock}:`, error);
+              fromBlock = toBlock + BigInt(1); // Skip problematic chunk
+            }
+          }
+        }
+
+        // Fetch votes for each proposal
+        const votesPromises = events.map((event: any) => 
+          publicClient.readContract({
+            address: CONTRACTS.GOVERNOR.address as `0x${string}`,
+            abi: CONTRACTS.GOVERNOR.abi,
+            functionName: 'proposalVotes',
+            args: [BigInt(event.args?.proposalId || 0)],
+          })
+        );
+
+        const allVotes = await Promise.all(votesPromises);
+
+        // Calculate totals
+        let totalFor = BigInt(0);
+        let totalAgainst = BigInt(0);
+        let totalAbstain = BigInt(0);
+
+        allVotes.forEach((votes: any) => {
+          // Convert each value to BigInt explicitly
+          totalFor += BigInt(votes.forVotes.toString());
+          totalAgainst += BigInt(votes.againstVotes.toString());
+          totalAbstain += BigInt(votes.abstainVotes.toString());
+        });
+
+        // Convert to numbers for display
+        const totalBigInt = totalFor + totalAgainst + totalAbstain;
+        const total = Number(formatEther(totalBigInt));
+        
+        setTotalVotes(total);
+        setForPercentage(total > 0 ? (Number(formatEther(totalFor)) / total) * 100 : 0);
+        setAgainstPercentage(total > 0 ? (Number(formatEther(totalAgainst)) / total) * 100 : 0);
+        setAbstainPercentage(total > 0 ? (Number(formatEther(totalAbstain)) / total) * 100 : 0);
+
+      } catch (error) {
+        console.log('Error fetching voting stats:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchVotingStats();
+  }, [publicClient]);
+
+  if (isLoading) {
+    return (
       <Card>
         <CardHeader>
-          <CardTitle>Voting Stats</CardTitle>
+          <CardTitle>Voting Statistics</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <h4 className="text-sm font-medium">Total Votes Cast</h4>
-              <p className="text-2xl font-bold">{MOCK_STATS.totalVotes.toLocaleString()} tokens</p>
-            </div>
-
-            <div>
-              <h4 className="text-sm font-medium">Participation Rate</h4>
-              <div className="space-y-2">
-                <Progress value={MOCK_STATS.participationRate} className="h-2" />
-                <p className="text-sm text-muted-foreground">{MOCK_STATS.participationRate}% of token holders</p>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-sm font-medium">Proposal Statistics</h4>
-              <div className="grid grid-cols-2 gap-4 mt-2">
-                <div className="bg-muted rounded-lg p-3">
-                  <p className="text-sm text-muted-foreground">Total</p>
-                  <p className="text-lg font-semibold">{MOCK_STATS.totalProposals}</p>
-                </div>
-                <div className="bg-muted rounded-lg p-3">
-                  <p className="text-sm text-muted-foreground">Active</p>
-                  <p className="text-lg font-semibold">{MOCK_STATS.activeProposals}</p>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-sm font-medium">Top Voters</h4>
-              <div className="space-y-2 mt-2">
-                {MOCK_STATS.topVoters.map((voter, index) => (
-                  <div key={index} className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">{voter.address}</span>
-                    <span className="text-sm font-medium">{voter.votes.toLocaleString()} tokens</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+        <CardContent className="space-y-4">
+          <div className="text-center py-8">
+            <Loader />
+            <p className="text-muted-foreground mt-2">Loading voting stats...</p>
           </div>
         </CardContent>
       </Card>
-    </div>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Voting Statistics</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <div className="flex justify-between mb-2">
+            <span className="text-sm font-medium">Total Votes Cast</span>
+            <span className="text-sm font-medium">{totalVotes.toFixed(2)}</span>
+          </div>
+          <Progress value={100} className="h-2" />
+        </div>
+        <div>
+          <div className="flex justify-between mb-2">
+            <span className="text-sm font-medium">For</span>
+            <span className="text-sm font-medium">{forPercentage.toFixed(1)}%</span>
+          </div>
+          <Progress value={forPercentage} className="h-2 bg-green-100" />
+        </div>
+        <div>
+          <div className="flex justify-between mb-2">
+            <span className="text-sm font-medium">Against</span>
+            <span className="text-sm font-medium">{againstPercentage.toFixed(1)}%</span>
+          </div>
+          <Progress value={againstPercentage} className="h-2 bg-red-100" />
+        </div>
+        <div>
+          <div className="flex justify-between mb-2">
+            <span className="text-sm font-medium">Abstain</span>
+            <span className="text-sm font-medium">{abstainPercentage.toFixed(1)}%</span>
+          </div>
+          <Progress value={abstainPercentage} className="h-2 bg-gray-100" />
+        </div>
+      </CardContent>
+    </Card>
   );
 } 
