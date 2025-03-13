@@ -1,6 +1,11 @@
 import BaseService from './baseService.service'; // Import all services
 import AuthService from './auth.service';
 import UserService from './user.service';
+import LlmService from './llm.service';
+import MarketDataService from './marketData.service';
+import TradingService from './trading.service';
+import LlmQueue from './queues/llmDecision.worker';
+import CurvanceService from './curvance.service';
 
 import _ from 'lodash';
 
@@ -18,6 +23,12 @@ export type IServiceInstances = ServiceInstances<typeof allServices>;
 export const allServices = {
   AuthService,
   UserService,
+  LlmService,
+  MarketDataService,
+  TradingService,
+  CurvanceService,
+  // Queues
+  LlmQueue,
 };
 
 class Services {

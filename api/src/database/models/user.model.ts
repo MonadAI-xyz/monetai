@@ -3,9 +3,7 @@ import { DataTypes, Model, Optional } from 'sequelize';
 
 export interface UserAttributes {
   id: string;
-  username: string;
-  email: string;
-  passwordHash: string;
+  wallet_address: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -17,9 +15,7 @@ export type UserCreationAttributes = Optional<UserAttributes, UserOptionalAttrib
 
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   id!: string;
-  username!: string;
-  email!: string;
-  passwordHash!: string;
+  wallet_address!: string;
   createdAt!: Date;
   updatedAt!: Date;
 
@@ -32,20 +28,10 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
           defaultValue: DataTypes.UUIDV4,
           primaryKey: true,
         },
-        username: {
+        wallet_address: {
           type: DataTypes.STRING(255),
           allowNull: false,
-          unique: 'users_username_key',
-        },
-        email: {
-          type: DataTypes.STRING(255),
-          allowNull: false,
-          unique: 'users_email_key',
-        },
-        passwordHash: {
-          type: DataTypes.STRING(255),
-          allowNull: false,
-          field: 'password_hash',
+          unique: true,
         },
       },
       {
@@ -55,19 +41,14 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
         timestamps: true,
         indexes: [
           {
-            name: 'users_email_key',
-            unique: true,
-            fields: [{ name: 'email' }],
-          },
-          {
             name: 'users_pkey',
             unique: true,
             fields: [{ name: 'id' }],
           },
           {
-            name: 'users_username_key',
+            name: 'users_wallet_address_key',
             unique: true,
-            fields: [{ name: 'username' }],
+            fields: [{ name: 'wallet_address' }],
           },
         ],
       },

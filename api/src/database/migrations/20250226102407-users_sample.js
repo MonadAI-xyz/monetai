@@ -11,19 +11,10 @@ module.exports = {
         primaryKey: true,
         defaultValue: queryInterface.sequelize.literal('gen_random_uuid()'),
       },
-      username: {
+      wallet_address: {
         type: Sequelize.DataTypes.STRING,
         allowNull: false,
         unique: true,
-      },
-      email: {
-        type: Sequelize.DataTypes.STRING,
-        allowNull: false,
-        unique: true,
-      },
-      password_hash: {
-        type: Sequelize.DataTypes.STRING,
-        allowNull: false,
       },
       created_at: {
         type: Sequelize.DataTypes.DATE,

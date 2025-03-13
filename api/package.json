@@ -20,7 +20,10 @@
     "db:migrate:undo:all": "npx sequelize-cli db:migrate:undo:all",
     "db:make:migrations": "./node_modules/sequelize-auto-migrations/bin/makemigration.js",
     "db:seed:all": "npx sequelize db:seed:all",
-    "db:seed:undo:all": "npx sequelize db:seed:undo:all"
+    "db:seed:undo:all": "npx sequelize db:seed:undo:all",
+    "migration:run": "sequelize-cli db:migrate",
+    "migration:undo": "sequelize-cli db:migrate:undo",
+    "migration:undo:all": "sequelize-cli db:migrate:undo:all"
   },
   "engines": {
     "node": ">=18.1"
@@ -38,11 +41,13 @@
     "outputName": "jest-junit.xml"
   },
   "dependencies": {
-    "@sentry/node": "^8.52.0",
-    "@sentry/profiling-node": "^8.52.0",
+    "@bull-board/api": "^6.7.10",
+    "@bull-board/express": "^6.7.10",
     "axios": "^1.7.9",
     "bcryptjs": "^3.0.0",
     "body-parser": "^1.20.3",
+    "bull": "^4.16.5",
+    "bullmq": "^5.41.7",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "class-validator-jsonschema": "^5.0.1",
@@ -51,8 +56,10 @@
     "cross-env": "^7.0.3",
     "dotenv": "^16.4.7",
     "envalid": "^8.0.0",
+    "ethers": "^5.7.2",
     "express": "^4.21.2",
     "express-async-errors": "^3.1.1",
+    "express-basic-auth": "^1.2.1",
     "express-ws": "^5.0.2",
     "helmet": "^8.0.0",
     "hpp": "^0.2.3",
@@ -61,6 +68,7 @@
     "lodash": "^4.17.21",
     "moment": "^2.30.1",
     "morgan": "^1.10.0",
+    "openai": "^4.85.4",
     "openapi-types": "^12.1.3",
     "pg": "^8.13.1",
     "pg-hstore": "^2.3.4",
@@ -75,6 +83,7 @@
     "ts-jest": "^29.2.5",
     "uuid-parse": "^1.1.0",
     "uuidv4": "^6.2.13",
+    "viem": "^2.23.6",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0",
     "ws": "^8.18.0"

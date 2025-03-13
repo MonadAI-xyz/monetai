@@ -1,5 +1,3 @@
-import '@utils/sentry';
-
 import config from '@config';
 import Routes from '@interfaces/routes.interface';
 import { errorHandler } from '@middlewares/errorHandler.middleware';
@@ -18,14 +16,19 @@ import path from 'path';
 import responseTime from 'response-time';
 import swaggerUi from 'swagger-ui-express';
 import swagger from './swagger';
+import { createBullBoard } from '@bull-board/api';
+import { ExpressAdapter } from '@bull-board/express';
+import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 
-import * as Sentry from '@sentry/node';
+import basicAuth from 'express-basic-auth';
+import Services from '@/services';
 
 class App {
-  public app: any;
+  public app: express.Application & { ws: any };
   public expressWs: any;
   public port: number;
   public env: string;
+  public serverAdapter = new ExpressAdapter();
 
   constructor(routes: Routes[], adminRoutes?: Routes[]) {
     this.expressWs = expressWs(express(), null, {
@@ -54,6 +57,7 @@ class App {
     this.initializeSwagger();
     this.initializeErrorHandling();
     this.initializeStaticRoutes();
+    this.initializeJobs();
 
     this.app.set('view engine', 'ejs');
     this.app.set('view engine', 'ejs');
@@ -138,17 +142,43 @@ class App {
   }
 
   private initializeErrorHandling() {
-    Sentry.setupExpressErrorHandler(this.app);
-    if (config.app.env === 'production' || config.app.env === 'staging') {
-      this.app.use(
-        Sentry.expressErrorHandler({
-          shouldHandleError: error => (error.status as number) >= 400,
-        }),
-      );
-    }
-
     this.app.use(successMiddleware);
     this.app.use(errorHandler);
+  }
+
+  private async initializeJobs() {
+    try {
+      const llmQueueWorker = Services.getInstance().llmQueue;
+      this.serverAdapter.setBasePath('/bullmq');
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      createBullBoard({
+        queues: [new BullMQAdapter(llmQueueWorker.llmDecisionQueue.queue)],
+        serverAdapter: this.serverAdapter,
+      });
+      this.app.use(
+        '/bullmq',
+        basicAuth({
+          users: { [config.auth.bullBoard.user]: config.auth.bullBoard.pass },
+          challenge: true, // Triggers browser login prompt
+          unauthorizedResponse: 'Unauthorized access',
+        }),
+        this.serverAdapter.getRouter(),
+      );
+
+      await llmQueueWorker.llmDecisionQueue.removeAllRepeatable();
+      llmQueueWorker.llmDecisionQueue.addQueue(
+        'apply-decision',
+        {},
+        {
+          repeat: {
+            cron: '0 * * * *', // Runs at the start of every hour
+          },
+        },
+      );
+    } catch (error) {
+      console.log(error);
+    }
   }
 }
 
