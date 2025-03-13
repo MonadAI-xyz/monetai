@@ -1,6 +1,6 @@
-![image](https://github.com/user-attachments/assets/e018b6f3-5dc1-4e92-b8d1-96dafcaeafd4)
-
 # MonetAI
+![422556152-e018b6f3-5dc1-4e92-b8d1-96dafcaeafd4 (1)](https://github.com/user-attachments/assets/cb11315e-d26f-412f-b12d-29b2d6f1fc49)
+
 
 ## Overview
 MonetAI is an advanced AI-driven DeFAi trading agent designed to optimize trade execution, arbitrage, and portfolio management on the Monad blockchain. Leveraging cutting-edge AI models, real-time data feeds, and automated trading strategies, MonetAI provides a seamless and intelligent DeFi experience.
