@@ -26,11 +26,11 @@ const menuItems: INavigationMenuItem[] = [
   },
   {
     title: 'Trading',
-    href: '#',
+    href: '/trading',
   },
   {
     title: 'Lending',
-    href: '#',
+    href: '/lending',
   },
   {
     title: 'DAO Governance',

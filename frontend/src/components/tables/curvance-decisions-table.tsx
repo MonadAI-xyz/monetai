@@ -1,13 +1,16 @@
 'use client';
 
+
 import { CheckedState } from '@radix-ui/react-checkbox';
 import { ColumnDef } from '@tanstack/react-table';
-import { format } from "date-fns"
 import { MoreHorizontal } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { DataTableColumnHeader } from '@/components/ui/data-table';
+import {
+  DataTable,
+  // DataTableColumnHeader
+} from '@/components/ui/data-table';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,10 +19,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ITradingHistoryTable } from '@/types';
 
+type CurvanceDecisionsTableProps = {
+  id: string;
+  action: string;
+  marketAnalysis: string;
+  riskAssessment: string;
+  confidence: string;
+};
 
-export const columns: ColumnDef<ITradingHistoryTable>[] = [
+export const columns: ColumnDef<CurvanceDecisionsTableProps>[] = [
   {
     id: 'select',
     header: ({ table }) => (
@@ -43,31 +52,35 @@ export const columns: ColumnDef<ITradingHistoryTable>[] = [
     enableSorting: false,
     enableHiding: false,
   },
+  // {
+  //   accessorKey: 'action',
+  //   header: ({ column }) => (
+  //     <DataTableColumnHeader column={column} title="Action" />
+  //   ),
+  // },
   {
-    accessorKey: 'txDate',
-    header: 'Tx. Date',
-    cell: ({ row }) => (
-      <div className="capitalize">
-        {row.getValue('txDate') ? format(row.getValue('txDate'), 'MMMM dd, yyyy') : '-'}
-      </div>
-    ),
+    accessorKey: 'action',
+    header: 'Action',
+    cell: ({ row }) => row.getValue('action'),
   },
   {
-    accessorKey: 'txDescription',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Tx. Description" />
-    ),
+    accessorKey: 'marketAnalysis',
+    header: 'Market Analysis',
+    cell: ({ row }) => row.getValue('marketAnalysis'),
   },
   {
-    accessorKey: 'txHash',
-    header: 'Tx. Hash',
-    cell: ({ row }) => (
-      <div className="font-medium">{row.getValue('txHash')}</div>
-    ),
+    accessorKey: 'riskAssessment',
+    header: 'Risk Assessment',
+    cell: ({ row }) => row.getValue('riskAssessment'),
+  },
+  {
+    accessorKey: 'confidence',
+    header: 'Confidence',
+    cell: ({ row }) => row.getValue('confidence'),
   },
   {
     id: 'actions',
-    header: 'Action',
+    // header: 'Action',
     enableHiding: false,
     cell: ({ row }) => {
       const payment = row.original;
@@ -96,3 +109,12 @@ export const columns: ColumnDef<ITradingHistoryTable>[] = [
     },
   },
 ];
+
+export default function CurvanceDecisionsTable({ data }) {
+  console.log('Curvance: ', data);
+  return (
+    <>
+      <DataTable columns={columns} data={data} />
+    </>
+  );
+}

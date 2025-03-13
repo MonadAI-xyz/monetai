@@ -16,10 +16,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ITradingHistoryTable } from '@/types';
+
+type LendingHistoryTableProps = {
+  id: string;
+  txDate: string;
+  txDescription: string;
+  txHash: string;
+};
 
 
-export const columns: ColumnDef<ITradingHistoryTable>[] = [
+export const columns: ColumnDef<LendingHistoryTableProps>[] = [
   {
     id: 'select',
     header: ({ table }) => (

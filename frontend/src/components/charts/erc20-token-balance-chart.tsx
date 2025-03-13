@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { Abi, formatUnits } from "viem";
-import { useAccount, useChainId } from "wagmi";
+import { useAccount, useBalance, useChainId } from "wagmi";
 import { readContracts } from "wagmi/actions";
 
 import { wagmiConfig } from "@/config/wagmi";
@@ -46,6 +46,9 @@ export default function ERC20BalanceChart() {
   const chainId = useChainId();
   const [balances, setBalances] = useState<{ symbol: string; balance: number }[]>([]);
   const [loading, setLoading] = useState(true);
+  const walletBalance = useBalance({ address });
+
+  console.log({ walletBalance });
 
   useEffect(() => {
     if (!isConnected || !address) return;
@@ -84,6 +87,18 @@ export default function ERC20BalanceChart() {
           };
         });
 
+        // append `MON` currency balance to formatted balances
+        if (walletBalance.isSuccess) {
+          const { symbol, decimals, value } = walletBalance.data;
+
+          if (symbol === 'MON') {
+            formattedBalances.push({
+              symbol: symbol,
+              balance: parseFloat(formatUnits(value, decimals)),
+            });
+          }
+        }
+
         setBalances(formattedBalances);
       } catch (error) {
         console.error("Error fetching balances:", error);
@@ -93,7 +108,7 @@ export default function ERC20BalanceChart() {
     };
 
     fetchBalances();
-  }, [address, isConnected, chainId]);
+  }, [address, isConnected, chainId, walletBalance.isSuccess]);
 
   if (!isConnected) return <div>Connect your wallet to see the balance chart.</div>;
   if (loading) return <div>Loading balances...</div>;
@@ -110,6 +125,8 @@ export default function ERC20BalanceChart() {
       mode: "dark", // Enable dark theme
       monochrome: {
         enabled: true,
+        color: "#816cf9", // purple-500
+        shadeIntensity: 0.4,
       },
     },
   };

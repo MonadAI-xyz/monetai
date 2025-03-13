@@ -2,25 +2,28 @@
 
 import ERC20BalancePieChart from '@/components/charts/erc20-token-balance-chart';
 import OHLCPriceMetricsChart from '@/components/charts/ohlc-price-metrics-chart';
-// import DAOGovernance from '@/components/dao-governance';
 import Header from '@/components/header';
-// import PortfolioOverview from '@/components/portfolio-overview';
-import { columns, DataTable } from '@/components/ui/data-table';
-import { transformTradingHistoryData } from '@/functions/transform-trading-history-data';
-import { getTradingHistory } from '@/lib/actions';
+import CurvanceDecisionsTable from '@/components/tables/curvance-decisions-table';
+import TradingDecisionsTable from '@/components/tables/trading-decisions-table';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { transformDecisionsData } from '@/functions';
+import { getDecisions } from '@/lib/actions';
 
 // export const metadata: Metadata = {
 //   title: "Home",
 // };
 
 export default async function Page() {
-  const response = await getTradingHistory();
-  // console.log({ getTradingHistory: response });
-
-  // Tranform the fetched data if sxists, otherwise fallback to static data
-  const transformedData = response?.data?.count > 0
-    ? transformTradingHistoryData(response.data.rows)
-    : [];
+  // Get decisions history
+  const decisions = await getDecisions();
+  const { tradingDecisions, curvanceDecisions } = transformDecisionsData(decisions.data.rows);
+  // console.log("Trading Decisions:", tradingDecisions);
+  // console.log("Curvance Decisions:", curvanceDecisions);
 
   return (
     <main className="bg-background relative flex min-h-svh flex-1 flex-col">
@@ -32,15 +35,26 @@ export default async function Page() {
             {/* <PortfolioOverview /> */}
             <ERC20BalancePieChart />
           </div>
-          {/* <div className="bg-muted/50 rounded-xl p-4">
-            <DAOGovernance />
-          </div> */}
           <div className="bg-muted/50 rounded-xl p-4 md:col-span-2">
             <OHLCPriceMetricsChart />
           </div>
         </div>
         <div className="bg-muted/50 min-h-[100vh] flex-1 rounded-xl p-4 md:min-h-min">
-          <DataTable columns={columns} data={transformedData} />
+          <h2 className="font-semibold tracking-tight text-xl mb-4">
+            Decisions History
+          </h2>
+          <Tabs defaultValue="trading">
+            <TabsList>
+              <TabsTrigger value="trading">Trading</TabsTrigger>
+              <TabsTrigger value="yieldFarming">Yield Farming</TabsTrigger>
+            </TabsList>
+            <TabsContent value="trading">
+              <TradingDecisionsTable data={tradingDecisions} />
+            </TabsContent>
+            <TabsContent value="yieldFarming">
+              <CurvanceDecisionsTable data={curvanceDecisions} />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </main>
