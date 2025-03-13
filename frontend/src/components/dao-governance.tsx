@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useAccount, useContractRead, useContractWrite, useWaitForTransactionReceipt, useChainId, usePublicClient, useWalletClient } from 'wagmi';
-import { readContract } from 'wagmi/actions';
+import { toast } from 'sonner';
 import { formatEther, decodeEventLog } from 'viem';
+import { useAccount, useContractRead, useContractWrite, useWaitForTransactionReceipt, usePublicClient, UseWriteContractParameters} from 'wagmi';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -15,13 +16,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Progress } from '@/components/ui/progress';
-import { toast } from 'sonner';
-import { CONTRACTS } from '@/config/contracts';
 import { Loader } from "@/components/ui/loader";
+import { Progress } from '@/components/ui/progress';
+import { Textarea } from "@/components/ui/textarea";
+import { CONTRACTS } from '@/config/contracts';
+
 
 // Helper for proposal states
 const ProposalState = {
@@ -33,7 +33,7 @@ const ProposalState = {
   Queued: 5,
   Expired: 6,
   Executed: 7
-};
+} as const;
 
 type VoteType = 'For' | 'Against' | 'Abstain';
 
@@ -42,13 +42,6 @@ const secondsToDays = (seconds: bigint) => Number(seconds) / 86400; // 86400 sec
 const weiToTokens = (wei: bigint | undefined | null) => {
   if (!wei) return 0;
   return Number(formatEther(wei));
-};
-
-// Add these types at the top
-type ProposalVotes = {
-  againstVotes: bigint;
-  forVotes: bigint;
-  abstainVotes: bigint;
 };
 
 // Update the Proposal type to match our data
@@ -65,18 +58,25 @@ type Proposal = {
   endBlock: number;
 };
 
-// Add the event type
-type ProposalCreatedEvent = {
-  proposalId: bigint;
-  proposer: string;
-  targets: string[];
-  values: bigint[];
-  signatures: string[];
-  calldatas: string[];
-  startBlock: bigint;
-  endBlock: bigint;
-  description: string;
-};
+interface ProposalCreatedLog {
+  args: {
+    proposalId: bigint;
+    proposer: string;
+    targets: string[];
+    values: bigint[];
+    signatures: string[];
+    calldatas: string[];
+    startBlock: bigint;
+    endBlock: bigint;
+    description: string;
+  };
+}
+
+interface ProposalVotes {
+  forVotes: bigint;
+  againstVotes: bigint;
+  abstainVotes: bigint;
+}
 
 // Add DEPLOY_BLOCK constant at the top with other constants
 const DEPLOY_BLOCK = BigInt("7583062");
@@ -97,20 +97,13 @@ const formatBlockTime = (timestamp: number) => {
 
 export default function DAOGovernance() {
   const { address } = useAccount();
-  const [proposals, setProposals] = useState<any[]>([]);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedProposal, setSelectedProposal] = useState<string | null>(null);
-
-  // Add chainId hook
-  const chainId = useChainId();
 
   // Add publicClient hook
   const publicClient = usePublicClient();
-
-  // Add walletClient hook
-  const { data: walletClient } = useWalletClient();
 
   // Contract reads
   const { data: votingDelay, isLoading: isLoadingVotingDelay } = useContractRead({
@@ -216,9 +209,6 @@ export default function DAOGovernance() {
     }
   }, [isDelegateSuccess]);
 
-  // Add currentBlock variable near the top of the component
-  const [currentBlock, setCurrentBlock] = useState<number>(0);
-
   // Add loading state
   const [isLoadingProposals, setIsLoadingProposals] = useState(true);
 
@@ -233,8 +223,6 @@ export default function DAOGovernance() {
     const fetchProposals = async () => {
       setIsLoadingProposals(true);
       try {
-        console.log("Fetching ProposalCreated events...");
-        setCurrentBlock(Number(END_BLOCK));
 
         const CHUNK_SIZE = BigInt(25); // Reduced to 25 blocks per request
         const events = [];
@@ -267,12 +255,12 @@ export default function DAOGovernance() {
               },
               fromBlock,
               toBlock
-            }) as any;
+            }) as ProposalCreatedLog[];
 
             events.push(...chunkEvents);
             fromBlock = toBlock + BigInt(1); // Move to next chunk
             
-          } catch (error: any) {
+          } catch (error: Error) {
             if (error?.message?.includes('eth_getLogs is limited')) {
               // If we hit the limit, reduce chunk size and retry
               const newChunkSize = (toBlock - fromBlock) / BigInt(2);
@@ -303,7 +291,7 @@ export default function DAOGovernance() {
               description,
               startBlock: voteStart, // These are actually timestamps
               endBlock: voteEnd
-            } = decodedData.args as unknown as {
+            } = decodedData.args as {
               proposalId: bigint,
               description: string,
               startBlock: number, // Timestamp
@@ -339,7 +327,7 @@ export default function DAOGovernance() {
             console.log("Read contract done")
 
             // Add null checks for votes
-            const proposalVotes = votes as any;
+            const proposalVotes = votes as ProposalVotes;
             const forVotes = proposalVotes?.forVotes ?? BigInt(0);
             const againstVotes = proposalVotes?.againstVotes ?? BigInt(0);
             const abstainVotes = proposalVotes?.abstainVotes ?? BigInt(0);
@@ -418,11 +406,11 @@ export default function DAOGovernance() {
           ["0x"], // empty calldata
           description.trim(),
         ],
-      } as any);
+      } as UseWriteContractParameters);
 
       console.log('Proposal created:', result);
       
-    } catch (error: any) {
+    } catch (error: Error) {
       console.log('Error creating proposal:', error);
       if (error?.message?.includes('GovernorInsufficientProposerVotes')) {
         toast.error(`You need at least ${formattedThreshold} voting power to create a proposal`);
@@ -441,25 +429,20 @@ export default function DAOGovernance() {
       setPreparingVote(proposalId); // Show loader while preparing
       const support = voteType === 'For' ? 1 : voteType === 'Against' ? 0 : 2;
       
-      const tx = await writeContract({
+      const _tx = await writeContract({
         address: CONTRACTS.GOVERNOR.address as `0x${string}`,
         abi: CONTRACTS.GOVERNOR.abi,
         functionName: 'castVote',
         args: [BigInt(proposalId), BigInt(support)],
-      } as any);
+      } as UseWriteContractParameters);
 
-    } catch (error: any) {
+    } catch (error: Error) {
       console.log('Error casting vote:', error);
       toast.error(error?.message || 'Failed to cast vote');
       setVoteTxHash(undefined);
       setVotingProposalId(null);
       setPreparingVote(null); // Clear preparation state on error
     }
-  };
-
-  const calculateProgress = (proposal: typeof proposals[0]) => {
-    const total = proposal.forVotes + proposal.againstVotes + proposal.abstainVotes;
-    return total === 0 ? 0 : Number((proposal.forVotes * 100) / total);
   };
 
   // Update the dialog description to show formatted threshold
@@ -472,12 +455,12 @@ export default function DAOGovernance() {
     if (!address) return;
 
     try {
-      const tx = await writeContract({
+      const _tx = await writeContract({
         address: CONTRACTS.TOKEN.address as `0x${string}`,
         abi: CONTRACTS.TOKEN.abi,
         functionName: 'delegate',
         args: [address], // delegate to self
-      } as any);
+      } as UseWriteContractParameters);
 
     } catch (error) {
       console.log('Error delegating tokens:', error);
@@ -553,10 +536,10 @@ export default function DAOGovernance() {
               </div>
               {tokenBalance && (tokenBalance as bigint) > BigInt(0) && (!userVotes || userVotes === BigInt(0)) && (
                 <Button
-                  onClick={handleDelegate} 
-                  className="mt-2"
-                  variant="outline"
-                  disabled={isDelegating}
+                className="mt-2"
+                disabled={isDelegating}
+                variant="outline"
+                onClick={handleDelegate} 
                 >
                   {isDelegating ? (
                     <div className="flex items-center gap-2">
@@ -575,16 +558,16 @@ export default function DAOGovernance() {
                 onOpenChange={(open) => {
                   setIsModalOpen(open);
                   if (!open) {
-                    // Only reset description when closing
                     setDescription('');
                   }
                 }}
               >
                 <DialogTrigger asChild>
                 <Button
-                    className="w-full" 
-                    disabled={!address || isLoadingThreshold || !canPropose}
-                  >
+                  className="w-full"
+                  disabled={!address || isLoadingThreshold || !canPropose}
+                  onClick={handleCreateProposal}
+                >
                     {isLoadingThreshold ? (
                       <div className="flex items-center gap-2">
                         <Loader /> Loading...
@@ -609,21 +592,18 @@ export default function DAOGovernance() {
                     <div className="grid gap-2">
                       <Label htmlFor="description">Proposal Description</Label>
                       <Textarea
+                        className="min-h-[100px]"
                         id="description"
                         placeholder="Enter your proposal description..."
                         value={description}
-                        onChange={(e) => {
-                          console.log('Textarea change:', e.target.value);
-                          setDescription(e.target.value);
-                        }}
-                        className="min-h-[100px]"
+                        onChange={(e) => {setDescription(e.target.value);}}
                       />
                     </div>
                   </div>
                   <DialogFooter>
                     <Button
-                      onClick={handleCreateProposal}
                       disabled={isSubmitting || isProposalPending}
+                      onClick={handleCreateProposal}
                     >
                       {isProposalPending ? (
                         <div className="flex items-center gap-2">
@@ -690,8 +670,8 @@ export default function DAOGovernance() {
                         <span>End: {formatBlockTime(proposal.endBlock)}</span>
                       </div>
                       <Progress 
-                        value={((proposal.forVotes) / (proposal.forVotes + proposal.againstVotes + proposal.abstainVotes || 1)) * 100} 
                         className="h-2" 
+                        value={((proposal.forVotes) / (proposal.forVotes + proposal.againstVotes + proposal.abstainVotes || 1)) * 100} 
                       />
                       <div className="flex justify-between text-sm">
                         <span>For: {proposal.forVotes.toFixed(2)}</span>
@@ -702,10 +682,10 @@ export default function DAOGovernance() {
 
                     <div className="flex gap-2 mt-4">
                       <Button
+                        disabled={!address || isVotePending || votingProposalId === proposal.id.toString() || preparingVote === proposal.id.toString()}
                         size="sm"
                         variant="outline"
                         onClick={() => handleVote(proposal.id.toString(), 'For')}
-                        disabled={!address || isVotePending || votingProposalId === proposal.id.toString() || preparingVote === proposal.id.toString()}
                       >
                         {preparingVote === proposal.id.toString() ? (
                           <div className="flex items-center gap-2">
@@ -720,10 +700,10 @@ export default function DAOGovernance() {
                         )}
                       </Button>
                       <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleVote(proposal.id.toString(), 'Against')}
-                        disabled={!address || isVotePending || votingProposalId === proposal.id.toString() || preparingVote === proposal.id.toString()}
+                          disabled={!address || isVotePending || votingProposalId === proposal.id.toString() || preparingVote === proposal.id.toString()}
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleVote(proposal.id.toString(), 'Against')}
                       >
                         {preparingVote === proposal.id.toString() ? (
                           <div className="flex items-center gap-2">
@@ -738,10 +718,10 @@ export default function DAOGovernance() {
                         )}
                       </Button>
                       <Button
+                        disabled={!address || isVotePending || votingProposalId === proposal.id.toString() || preparingVote === proposal.id.toString()}
                         size="sm"
                         variant="outline"
                         onClick={() => handleVote(proposal.id.toString(), 'Abstain')}
-                        disabled={!address || isVotePending || votingProposalId === proposal.id.toString() || preparingVote === proposal.id.toString()}
                       >
                         {preparingVote === proposal.id.toString() ? (
                           <div className="flex items-center gap-2">

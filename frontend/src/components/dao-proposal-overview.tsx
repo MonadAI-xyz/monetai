@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { usePublicClient } from 'wagmi';
 import { decodeEventLog } from 'viem';
-import { CONTRACTS } from '@/config/contracts';
+import { usePublicClient } from 'wagmi';
+
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader } from "@/components/ui/loader";
+import { CONTRACTS } from '@/config/contracts';
 
 // Constants
 const DEPLOY_BLOCK = BigInt("7583062");
@@ -20,6 +21,17 @@ type ProposalSummary = {
   endBlock: number;
 };
 
+interface ProposalCreatedLog {
+  args: {
+    proposalId: bigint;
+    description: string;
+    voteStart: number;
+    voteEnd: number;
+  };
+  data: `0x${string}`;
+  topics: [`0x${string}`];
+}
+
 export default function DAOProposalOverview() {
   const [proposals, setProposals] = useState<ProposalSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,7 +41,7 @@ export default function DAOProposalOverview() {
     const fetchProposals = async () => {
       try {
         const CHUNK_SIZE = BigInt(100);
-        const events = [];
+        const events: ProposalCreatedLog[] = [];
         
         for (let fromBlock = DEPLOY_BLOCK; fromBlock <= END_BLOCK; fromBlock += CHUNK_SIZE) {
           const toBlock = fromBlock + CHUNK_SIZE > END_BLOCK ? END_BLOCK : fromBlock + CHUNK_SIZE;
@@ -54,7 +66,7 @@ export default function DAOProposalOverview() {
               },
               fromBlock,
               toBlock
-            }) as any;
+            }) as ProposalCreatedLog[];
 
             events.push(...chunkEvents);
           } catch (error) {
@@ -69,14 +81,14 @@ export default function DAOProposalOverview() {
               data: event.data,
               topics: [event.topics[0]],
               strict: false
-            }) as any;
+            }) as ProposalCreatedLog;
 
             const {
               proposalId,
               description,
               voteStart,
               voteEnd
-            } = decodedData.args as any;
+            } = decodedData.args;
 
             const state = await publicClient.readContract({
               address: CONTRACTS.GOVERNOR.address as `0x${string}`,
@@ -159,4 +171,4 @@ export default function DAOProposalOverview() {
       </CardContent>
     </Card>
   );
-} 
+}
