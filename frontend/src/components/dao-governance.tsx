@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from 'react';
-import { toast } from 'sonner';
-// import { formatEther } from 'viem';
-import { useAccount } from 'wagmi';
-
+import { useEffect, useState } from 'react';
+import { useAccount, useContractRead, useContractWrite, useWaitForTransactionReceipt, useChainId, usePublicClient, useWalletClient } from 'wagmi';
+import { readContract } from 'wagmi/actions';
+import { formatEther, decodeEventLog } from 'viem';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -16,130 +15,474 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-// import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from '@/components/ui/progress';
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from '@/components/ui/progress';
+import { toast } from 'sonner';
+import { CONTRACTS } from '@/config/contracts';
+import { Loader } from "@/components/ui/loader";
 
-// Update MOCK_DATA in dao-governance.tsx
-const MOCK_DATA = {
-  votingDelay: 1, // 1 day
-  votingPeriod: 7, // 7 days
-  proposalThreshold: 500, // 500 tokens
-  proposals: [
-    {
-      id: '1',
-      title: 'Treasury Allocation Q2 2024',
-      description: 'Proposal to allocate 1M tokens for Q2 2024 development',
-      proposer: '0x1234...5678',
-      status: 'Active',
-      forVotes: 2500, // 2500 tokens
-      againstVotes: 1500, // 1500 tokens
-      abstainVotes: 500, // 500 tokens
-      deadline: Date.now() + 86400000,
-      executed: false,
-      category: 'Treasury'
-    },
-    {
-      id: '2',
-      title: 'Reduce Proposal Threshold',
-      description: 'Reduce proposal threshold from 500 tokens to 250 tokens',
-      proposer: '0x8765...4321',
-      status: 'Pending',
-      forVotes: 1200, // 1200 tokens
-      againstVotes: 800, // 800 tokens
-      abstainVotes: 300, // 300 tokens
-      deadline: Date.now() + 172800000, // 48 hours from now
-      executed: false,
-      category: 'Governance'
-    },
-    {
-      id: '3',
-      title: 'Protocol Upgrade v2.0',
-      description: 'Implement new features and security improvements',
-      proposer: '0x9876...0123',
-      status: 'Executed',
-      forVotes: 3500, // 3500 tokens
-      againstVotes: 500, // 500 tokens
-      abstainVotes: 200, // 200 tokens
-      deadline: Date.now() - 86400000, // 24 hours ago
-      executed: true,
-      category: 'Development'
-    }
-  ]
+// Helper for proposal states
+const ProposalState = {
+  Pending: 0,
+  Active: 1,
+  Canceled: 2,
+  Defeated: 3,
+  Succeeded: 4,
+  Queued: 5,
+  Expired: 6,
+  Executed: 7
 };
 
 type VoteType = 'For' | 'Against' | 'Abstain';
 
+// Helper functions for conversion
+const secondsToDays = (seconds: bigint) => Number(seconds) / 86400; // 86400 seconds in a day
+const weiToTokens = (wei: bigint | undefined | null) => {
+  if (!wei) return 0;
+  return Number(formatEther(wei));
+};
+
+// Add these types at the top
+type ProposalVotes = {
+  againstVotes: bigint;
+  forVotes: bigint;
+  abstainVotes: bigint;
+};
+
+// Update the Proposal type to match our data
+type Proposal = {
+  id: bigint;
+  description: string;
+  proposer?: string;
+  status: string;
+  forVotes: number;
+  againstVotes: number;
+  abstainVotes: number;
+  deadline: number;
+  startBlock: number;
+  endBlock: number;
+};
+
+// Add the event type
+type ProposalCreatedEvent = {
+  proposalId: bigint;
+  proposer: string;
+  targets: string[];
+  values: bigint[];
+  signatures: string[];
+  calldatas: string[];
+  startBlock: bigint;
+  endBlock: bigint;
+  description: string;
+};
+
+// Add DEPLOY_BLOCK constant at the top with other constants
+const DEPLOY_BLOCK = BigInt("7583062");
+const END_BLOCK = BigInt("7583273");
+
+// Update the formatBlockTime helper function
+const formatBlockTime = (timestamp: number) => {
+  const date = new Date(timestamp * 1000); // Convert Unix timestamp to milliseconds
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+};
+
 export default function DAOGovernance() {
   const { address } = useAccount();
-  const [proposals, setProposals] = useState(MOCK_DATA.proposals);
+  const [proposals, setProposals] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // const [selectedProposal, setSelectedProposal] = useState<string | null>(null);
+  const [selectedProposal, setSelectedProposal] = useState<string | null>(null);
 
-  // Use mock data instead of contract reads
-  const votingDelay = MOCK_DATA.votingDelay;
-  const votingPeriod = MOCK_DATA.votingPeriod;
-  const proposalThreshold = MOCK_DATA.proposalThreshold;
+  // Add chainId hook
+  const chainId = useChainId();
+
+  // Add publicClient hook
+  const publicClient = usePublicClient();
+
+  // Add walletClient hook
+  const { data: walletClient } = useWalletClient();
+
+  // Contract reads
+  const { data: votingDelay, isLoading: isLoadingVotingDelay } = useContractRead({
+    address: CONTRACTS.GOVERNOR.address as `0x${string}`,
+    abi: CONTRACTS.GOVERNOR.abi,
+    functionName: 'votingDelay',
+  });
+
+  const { data: votingPeriod, isLoading: isLoadingVotingPeriod } = useContractRead({
+    address: CONTRACTS.GOVERNOR.address as `0x${string}`,
+    abi: CONTRACTS.GOVERNOR.abi,
+    functionName: 'votingPeriod',
+  });
+
+  const { data: proposalThreshold, isLoading: isLoadingThreshold } = useContractRead({
+    address: CONTRACTS.GOVERNOR.address as `0x${string}`,
+    abi: CONTRACTS.GOVERNOR.abi,
+    functionName: 'proposalThreshold',
+  });
+
+  // Update the contract read to include loading state
+  const { data: userVotes, isLoading: isLoadingVotes } = useContractRead({
+    address: CONTRACTS.TOKEN.address as `0x${string}`,
+    abi: CONTRACTS.TOKEN.abi,
+    functionName: 'getVotes',
+    args: [address || '0x0'],
+  });
+
+  // Add balance check
+  const { data: tokenBalance } = useContractRead({
+    address: CONTRACTS.TOKEN.address as `0x${string}`,
+    abi: CONTRACTS.TOKEN.abi,
+    functionName: 'balanceOf',
+    args: [address || '0x0'],
+  });
+
+  // Check if user can propose
+  const canPropose = userVotes && proposalThreshold ? 
+    (userVotes as bigint) >= (proposalThreshold as bigint) : 
+    false;
+
+  // Update contract writes
+  const { writeContract } = useContractWrite();
+
+  // Track transaction hashes
+  const [proposalTxHash, setProposalTxHash] = useState<`0x${string}` | undefined>();
+  const [voteTxHash, setVoteTxHash] = useState<`0x${string}` | undefined>();
+
+  // Wait for transactions
+  const { isLoading: isProposalPending, isSuccess: isProposalSuccess } = useWaitForTransactionReceipt({
+    hash: proposalTxHash,
+  });
+
+  const { isLoading: isVotePending, isSuccess: isVoteSuccess } = useWaitForTransactionReceipt({
+    hash: voteTxHash,
+  });
+
+  // Watch for transaction success
+  useEffect(() => {
+    if (isProposalSuccess) {
+      toast.success('Proposal created successfully!');
+      setIsModalOpen(false);
+      setDescription('');
+      setProposalTxHash(undefined);
+    }
+  }, [isProposalSuccess]);
+
+  useEffect(() => {
+    if (isVoteSuccess) {
+      toast.success('Vote cast successfully');
+      setVoteTxHash(undefined);
+      setVotingProposalId(null);
+      setPreparingVote(null);
+    }
+  }, [isVoteSuccess]);
+
+  // Add debug log for description state
+  useEffect(() => {
+    console.log('Description:', description);
+  }, [description]);
+
+  // Log balance and votes whenever they change
+  useEffect(() => {
+    if (address && tokenBalance) {
+      console.log('Token Balance:', weiToTokens(tokenBalance as bigint), 'tokens');
+      console.log('Voting Power:', userVotes ? weiToTokens(userVotes as bigint) : 0, 'votes');
+    }
+  }, [address, tokenBalance, userVotes]);
+
+  // Add delegate transaction tracking
+  const [delegateTxHash, setDelegateTxHash] = useState<`0x${string}` | undefined>();
+
+  // Add delegate transaction receipt watch
+  const { isLoading: isDelegating, isSuccess: isDelegateSuccess } = useWaitForTransactionReceipt({
+    hash: delegateTxHash,
+  });
+
+  // Watch for delegate success
+  useEffect(() => {
+    if (isDelegateSuccess) {
+      toast.success('Successfully delegated tokens');
+      setDelegateTxHash(undefined);
+    }
+  }, [isDelegateSuccess]);
+
+  // Add currentBlock variable near the top of the component
+  const [currentBlock, setCurrentBlock] = useState<number>(0);
+
+  // Add loading state
+  const [isLoadingProposals, setIsLoadingProposals] = useState(true);
+
+  // Add state for vote loading
+  const [votingProposalId, setVotingProposalId] = useState<string | null>(null);
+
+  // Add state for vote preparation
+  const [preparingVote, setPreparingVote] = useState<string | null>(null);
+
+  // Update the useEffect to fetch proposals in chunks
+  useEffect(() => {
+    const fetchProposals = async () => {
+      setIsLoadingProposals(true);
+      try {
+        console.log("Fetching ProposalCreated events...");
+        setCurrentBlock(Number(END_BLOCK));
+
+        const CHUNK_SIZE = BigInt(25); // Reduced to 25 blocks per request
+        const events = [];
+        
+        for (let fromBlock = DEPLOY_BLOCK; fromBlock <= END_BLOCK;) {
+          let toBlock = fromBlock + CHUNK_SIZE > END_BLOCK ? END_BLOCK : fromBlock + CHUNK_SIZE - BigInt(1);
+          
+          console.log(`Fetching logs from block ${fromBlock} to ${toBlock}`);
+          
+          try {
+            // Add delay between requests
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            const chunkEvents = await publicClient.getLogs({
+              address: CONTRACTS.GOVERNOR.address as `0x${string}`,
+              event: {
+                type: 'event',
+                name: 'ProposalCreated',
+                inputs: [
+                  { type: 'uint256', name: 'proposalId', indexed: false },
+                  { type: 'address', name: 'proposer', indexed: true },
+                  { type: 'address[]', name: 'targets', indexed: false },
+                  { type: 'uint256[]', name: 'values', indexed: false },
+                  { type: 'string[]', name: 'signatures', indexed: false },
+                  { type: 'bytes[]', name: 'calldatas', indexed: false },
+                  { type: 'uint256', name: 'startBlock', indexed: false },
+                  { type: 'uint256', name: 'endBlock', indexed: false },
+                  { type: 'string', name: 'description', indexed: false }
+                ]
+              },
+              fromBlock,
+              toBlock
+            }) as any;
+
+            events.push(...chunkEvents);
+            fromBlock = toBlock + BigInt(1); // Move to next chunk
+            
+          } catch (error: any) {
+            if (error?.message?.includes('eth_getLogs is limited')) {
+              // If we hit the limit, reduce chunk size and retry
+              const newChunkSize = (toBlock - fromBlock) / BigInt(2);
+              toBlock = fromBlock + newChunkSize;
+              console.log(`Reducing chunk size, retrying with range ${fromBlock} to ${toBlock}`);
+              continue; // Retry with smaller chunk
+            } else {
+              console.log(`Error fetching chunk ${fromBlock}-${toBlock}:`, error);
+              fromBlock = toBlock + BigInt(1); // Skip problematic chunk
+            }
+          }
+        }
+
+        console.log('Found events:', events);
+
+        // Map over events to fetch proposal details
+        const proposalPromises = events.map(async (event) => {
+          try {
+            const decodedData = decodeEventLog({
+              abi: CONTRACTS.GOVERNOR.abi,
+              data: event.data,
+              topics: [event.topics[0]],
+              strict: false
+            });
+
+            const {
+              proposalId,
+              description,
+              startBlock: voteStart, // These are actually timestamps
+              endBlock: voteEnd
+            } = decodedData.args as unknown as {
+              proposalId: bigint,
+              description: string,
+              startBlock: number, // Timestamp
+              endBlock: number // Timestamp
+            };
+
+            console.log("Calling read contract")
+
+            // // Get proposer from indexed topic
+            // const proposer = event.topics[1] as `0x${string}`;
+
+            const [state, votes, deadline] = await Promise.all([
+              publicClient.readContract({
+                address: CONTRACTS.GOVERNOR.address as `0x${string}`,
+                abi: CONTRACTS.GOVERNOR.abi,
+                functionName: 'state',
+                args: [proposalId],
+              }),
+              publicClient.readContract({
+                address: CONTRACTS.GOVERNOR.address as `0x${string}`,
+                abi: CONTRACTS.GOVERNOR.abi,
+                functionName: 'proposalVotes',
+                args: [proposalId],
+              }),
+              publicClient.readContract({
+                address: CONTRACTS.GOVERNOR.address as `0x${string}`,
+                abi: CONTRACTS.GOVERNOR.abi,
+                functionName: 'proposalDeadline',
+                args: [proposalId],
+              }),
+            ]);
+
+            console.log("Read contract done")
+
+            // Add null checks for votes
+            const proposalVotes = votes as any;
+            const forVotes = proposalVotes?.forVotes ?? BigInt(0);
+            const againstVotes = proposalVotes?.againstVotes ?? BigInt(0);
+            const abstainVotes = proposalVotes?.abstainVotes ?? BigInt(0);
+
+            return {
+              id: proposalId,
+              description,
+              // proposer,
+              status: getProposalState(Number(state)),
+              startBlock: Number(voteStart), // Store as timestamp
+              endBlock: Number(voteEnd), // Store as timestamp
+              forVotes: Number(formatEther(forVotes)),
+              againstVotes: Number(formatEther(againstVotes)),
+              abstainVotes: Number(formatEther(abstainVotes)),
+              deadline: Number(deadline)
+            };
+          } catch (error) {
+            console.log(`Error decoding/fetching proposal:`, error);
+            return null;
+          }
+        });
+
+        const fetchedProposals = await Promise.all(proposalPromises);
+        const validProposals = fetchedProposals.filter((p): p is Proposal => p !== null);
+
+        console.log('📊 All proposals summary:', validProposals);
+        setProposals(validProposals);
+      } catch (error) {
+        console.log('❌ Error fetching proposals:', error);
+      } finally {
+        setIsLoadingProposals(false);
+      }
+    };
+
+    fetchProposals();
+  }, [publicClient]);
+
+  // Function to get proposal state string
+  const getProposalState = (state: number) => {
+    switch (state) {
+      case ProposalState.Pending: return 'Pending';
+      case ProposalState.Active: return 'Active';
+      case ProposalState.Canceled: return 'Canceled';
+      case ProposalState.Defeated: return 'Defeated';
+      case ProposalState.Succeeded: return 'Succeeded';
+      case ProposalState.Queued: return 'Queued';
+      case ProposalState.Expired: return 'Expired';
+      case ProposalState.Executed: return 'Executed';
+      default: return 'Unknown';
+    }
+  };
 
   const handleCreateProposal = async () => {
-    if (!description) {
+    console.log('Creating proposal with description:', description);
+    
+    if (!description.trim()) {
       toast.error('Please enter a proposal description');
+      return;
+    }
+
+    if (!canPropose) {
+      toast.error(`You need at least ${formattedThreshold} voting power to create a proposal`);
       return;
     }
 
     try {
       setIsSubmitting(true);
+      
+      const result = await writeContract({
+        address: CONTRACTS.GOVERNOR.address as `0x${string}`,
+        abi: CONTRACTS.GOVERNOR.abi,
+        functionName: 'propose',
+        args: [
+          [CONTRACTS.GOVERNOR.address], // target address
+          [BigInt(0)], // value in wei
+          ["0x"], // empty calldata
+          description.trim(),
+        ],
+      } as any);
 
-      // Mock proposal creation
-      const newProposal = {
-        id: (proposals.length + 1).toString(),
-        title: description.split('\n')[0] || 'Untitled Proposal',
-        description,
-        proposer: address || '0x0',
-        status: 'Pending',
-        forVotes: 0,
-        againstVotes: 0,
-        abstainVotes: 0,
-        deadline: Date.now() + Number(votingDelay) * 1000,
-        executed: false
-      };
-
-      setProposals([...proposals, newProposal]);
-      toast.success('Proposal created successfully!');
-      setIsModalOpen(false);
-      setDescription('');
-    } catch (error) {
-      console.error('Error creating proposal:', error);
-      toast.error('Failed to create proposal');
-    } finally {
+      console.log('Proposal created:', result);
+      
+    } catch (error: any) {
+      console.log('Error creating proposal:', error);
+      if (error?.message?.includes('GovernorInsufficientProposerVotes')) {
+        toast.error(`You need at least ${formattedThreshold} voting power to create a proposal`);
+      } else {
+        toast.error(error?.message || 'Failed to create proposal');
+      }
       setIsSubmitting(false);
+      setProposalTxHash(undefined);
     }
   };
 
-  const handleVote = (proposalId: string, voteType: VoteType) => {
-    setProposals(prevProposals =>
-      prevProposals.map(proposal => {
-        if (proposal.id === proposalId) {
-          const voteAmount = 1; // 1 token
-          return {
-            ...proposal,
-            forVotes: voteType === 'For' ? proposal.forVotes + voteAmount : proposal.forVotes,
-            againstVotes: voteType === 'Against' ? proposal.againstVotes + voteAmount : proposal.againstVotes,
-            abstainVotes: voteType === 'Abstain' ? proposal.abstainVotes + voteAmount : proposal.abstainVotes,
-          };
-        }
-        return proposal;
-      })
-    );
-    toast.success(`Voted ${voteType.toLowerCase()} on proposal ${proposalId}`);
+  const handleVote = async (proposalId: string, voteType: VoteType) => {
+    if (!address) return;
+    
+    try {
+      setPreparingVote(proposalId); // Show loader while preparing
+      const support = voteType === 'For' ? 1 : voteType === 'Against' ? 0 : 2;
+      
+      const tx = await writeContract({
+        address: CONTRACTS.GOVERNOR.address as `0x${string}`,
+        abi: CONTRACTS.GOVERNOR.abi,
+        functionName: 'castVote',
+        args: [BigInt(proposalId), BigInt(support)],
+      } as any);
+
+    } catch (error: any) {
+      console.log('Error casting vote:', error);
+      toast.error(error?.message || 'Failed to cast vote');
+      setVoteTxHash(undefined);
+      setVotingProposalId(null);
+      setPreparingVote(null); // Clear preparation state on error
+    }
   };
 
-  const calculateProgress = (proposal: typeof MOCK_DATA.proposals[0]) => {
+  const calculateProgress = (proposal: typeof proposals[0]) => {
     const total = proposal.forVotes + proposal.againstVotes + proposal.abstainVotes;
     return total === 0 ? 0 : Number((proposal.forVotes * 100) / total);
+  };
+
+  // Update the dialog description to show formatted threshold
+  const formattedThreshold = proposalThreshold ? 
+    `${weiToTokens(proposalThreshold as bigint)} Tokens` : 
+    'Loading...';
+
+  // Add delegate contract write
+  const handleDelegate = async () => {
+    if (!address) return;
+
+    try {
+      const tx = await writeContract({
+        address: CONTRACTS.TOKEN.address as `0x${string}`,
+        abi: CONTRACTS.TOKEN.abi,
+        functionName: 'delegate',
+        args: [address], // delegate to self
+      } as any);
+
+    } catch (error) {
+      console.log('Error delegating tokens:', error);
+      toast.error('Failed to delegate tokens');
+    }
   };
 
   return (
@@ -148,41 +491,118 @@ export default function DAOGovernance() {
         <CardHeader>
           <CardTitle>DAO Governance</CardTitle>
         </CardHeader>
-        <CardContent className="pb-6">
+        <CardContent>
           <div className="space-y-4">
             <div>
               <h4 className="text-sm font-medium">Voting Delay</h4>
-              <p className="text-2xl font-bold">
-                {`${Number(votingDelay)} days`}
-              </p>
+              <div className="text-2xl font-bold">
+                {isLoadingVotingDelay ? (
+                  <div className="flex items-center gap-2">
+                    <Loader /> Loading...
+                  </div>
+                ) : votingDelay ? (
+                  `${secondsToDays(votingDelay as bigint)} Day${secondsToDays(votingDelay as bigint) !== 1 ? 's' : ''}`
+                ) : (
+                  'N/A'
+                )}
+              </div>
             </div>
-
-            <div>
+            
+              <div>
               <h4 className="text-sm font-medium">Voting Period</h4>
-              <p className="text-2xl font-bold">
-                {`${Number(votingPeriod)} days`}
-              </p>
+              <div className="text-2xl font-bold">
+                {isLoadingVotingPeriod ? (
+                  <div className="flex items-center gap-2">
+                    <Loader /> Loading...
+                  </div>
+                ) : votingPeriod ? (
+                  `${secondsToDays(votingPeriod as bigint)} Day${secondsToDays(votingPeriod as bigint) !== 1 ? 's' : ''}`
+                ) : (
+                  'N/A'
+                )}
+              </div>
             </div>
 
-            <div>
+              <div>
               <h4 className="text-sm font-medium">Proposal Threshold</h4>
-              <p className="text-2xl font-bold">
-                {`${proposalThreshold} tokens`}
-              </p>
+              <div className="text-2xl font-bold">
+                {isLoadingThreshold ? (
+                  <div className="flex items-center gap-2">
+                    <Loader /> Loading...
+                  </div>
+                ) : proposalThreshold ? (
+                  formattedThreshold
+                ) : (
+                  'N/A'
+                )}
+              </div>
+              </div>
+
+            <div>
+              <h4 className="text-sm font-medium">Your Voting Power</h4>
+              <div className="text-2xl font-bold">
+                {isLoadingVotes ? (
+                  <div className="flex items-center gap-2">
+                    <Loader /> Loading...
+                  </div>
+                ) : userVotes ? (
+                  `${weiToTokens(userVotes as bigint)} votes`
+                ) : (
+                  '0 votes'
+                )}
+              </div>
+              {tokenBalance && (tokenBalance as bigint) > BigInt(0) && (!userVotes || userVotes === BigInt(0)) && (
+                <Button
+                  onClick={handleDelegate} 
+                  className="mt-2"
+                  variant="outline"
+                  disabled={isDelegating}
+                >
+                  {isDelegating ? (
+                    <div className="flex items-center gap-2">
+                      <Loader size={14} /> Delegating...
+                    </div>
+                  ) : (
+                    'Delegate Tokens to Get Voting Power'
+                  )}
+                </Button>
+              )}
             </div>
 
             <div className="pt-4">
-              <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+              <Dialog 
+                open={isModalOpen} 
+                onOpenChange={(open) => {
+                  setIsModalOpen(open);
+                  if (!open) {
+                    // Only reset description when closing
+                    setDescription('');
+                  }
+                }}
+              >
                 <DialogTrigger asChild>
-                  <Button className="w-full" disabled={!address}>
-                    Create Proposal
-                  </Button>
+                <Button
+                    className="w-full" 
+                    disabled={!address || isLoadingThreshold || !canPropose}
+                  >
+                    {isLoadingThreshold ? (
+                      <div className="flex items-center gap-2">
+                        <Loader /> Loading...
+                      </div>
+                    ) : !address ? (
+                      'Connect Wallet'
+                    ) : !canPropose ? (
+                      `Need ${formattedThreshold} voting power`
+                    ) : (
+                      'Create Proposal'
+                    )}
+                </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Create New Proposal</DialogTitle>
                     <DialogDescription>
-                      Create a new governance proposal. You need {proposalThreshold} tokens to create a proposal.
+                      Create a new governance proposal. You need {formattedThreshold} to create a proposal.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
@@ -192,16 +612,30 @@ export default function DAOGovernance() {
                         id="description"
                         placeholder="Enter your proposal description..."
                         value={description}
-                        onChange={(e) => setDescription(e.target.value)}
+                        onChange={(e) => {
+                          console.log('Textarea change:', e.target.value);
+                          setDescription(e.target.value);
+                        }}
+                        className="min-h-[100px]"
                       />
                     </div>
                   </div>
                   <DialogFooter>
                     <Button
-                      disabled={isSubmitting}
                       onClick={handleCreateProposal}
+                      disabled={isSubmitting || isProposalPending}
                     >
-                      {isSubmitting ? 'Creating...' : 'Create Proposal'}
+                      {isProposalPending ? (
+                        <div className="flex items-center gap-2">
+                          <Loader /> Confirming Transaction...
+                        </div>
+                      ) : isSubmitting ? (
+                        <div className="flex items-center gap-2">
+                          <Loader /> Preparing Transaction...
+              </div>
+                      ) : (
+                        'Create Proposal'
+                      )}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -216,62 +650,116 @@ export default function DAOGovernance() {
         <CardHeader>
           <CardTitle>Proposals</CardTitle>
         </CardHeader>
-        <CardContent className="pb-6">
+        <CardContent>
           <div className="space-y-6">
-            {proposals.map((proposal) => (
-              <Card key={proposal.id} className="p-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold">{proposal.title}</h3>
-                      <p className="text-sm text-muted-foreground">{proposal.description}</p>
-                    </div>
-                    <span className={`px-2 py-1 text-xs rounded-full ${proposal.status === 'Active' ? 'bg-green-100 text-green-800' :
-                      proposal.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+            {isLoadingProposals ? (
+              <div className="text-center py-8">
+                <Loader />
+                <p className="text-muted-foreground mt-2">Loading proposals...</p>
+              </div>
+            ) : proposals.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No proposals yet
+              </div>
+            ) : (
+              proposals.map((proposal) => (
+                <Card key={proposal.id.toString()} className="p-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-semibold">
+                          Proposal #{proposal.id.toString().slice(0, 4)}...{proposal.id.toString().slice(-4)}
+                        </h3>
+                        <p className="text-sm text-muted-foreground font-semibold">{proposal.description}</p>
+                        {/* <p className="text-xs text-muted-foreground mt-1">
+                          Proposed by: {proposal.proposer.slice(0, 6)}...{proposal.proposer.slice(-4)}
+                        </p> */}
+                      </div>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        proposal.status === 'Active' ? 'bg-green-100 text-green-800' :
+                        proposal.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
-                      {proposal.status}
-                    </span>
-                  </div>
+                        {proposal.status}
+                      </span>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Progress className="h-2" value={calculateProgress(proposal)} />
-                    <div className="flex justify-between text-sm">
-                      <span>For: {proposal.forVotes} tokens</span>
-                      <span>Against: {proposal.againstVotes} tokens</span>
-                      <span>Abstain: {proposal.abstainVotes} tokens</span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Start: {formatBlockTime(proposal.startBlock)}</span>
+                        <span>End: {formatBlockTime(proposal.endBlock)}</span>
+                      </div>
+                      <Progress 
+                        value={((proposal.forVotes) / (proposal.forVotes + proposal.againstVotes + proposal.abstainVotes || 1)) * 100} 
+                        className="h-2" 
+                      />
+                      <div className="flex justify-between text-sm">
+                        <span>For: {proposal.forVotes.toFixed(2)}</span>
+                        <span>Against: {proposal.againstVotes.toFixed(2)}</span>
+                        <span>Abstain: {proposal.abstainVotes.toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 mt-4">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleVote(proposal.id.toString(), 'For')}
+                        disabled={!address || isVotePending || votingProposalId === proposal.id.toString() || preparingVote === proposal.id.toString()}
+                      >
+                        {preparingVote === proposal.id.toString() ? (
+                          <div className="flex items-center gap-2">
+                            <Loader size={14} /> Preparing...
+                          </div>
+                        ) : isVotePending && votingProposalId === proposal.id.toString() ? (
+                          <div className="flex items-center gap-2">
+                            <Loader size={14} /> Voting...
+                          </div>
+                        ) : (
+                          'Vote For'
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleVote(proposal.id.toString(), 'Against')}
+                        disabled={!address || isVotePending || votingProposalId === proposal.id.toString() || preparingVote === proposal.id.toString()}
+                      >
+                        {preparingVote === proposal.id.toString() ? (
+                          <div className="flex items-center gap-2">
+                            <Loader size={14} /> Preparing...
+                          </div>
+                        ) : isVotePending && votingProposalId === proposal.id.toString() ? (
+                          <div className="flex items-center gap-2">
+                            <Loader size={14} /> Voting...
+                          </div>
+                        ) : (
+                          'Vote Against'
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleVote(proposal.id.toString(), 'Abstain')}
+                        disabled={!address || isVotePending || votingProposalId === proposal.id.toString() || preparingVote === proposal.id.toString()}
+                      >
+                        {preparingVote === proposal.id.toString() ? (
+                          <div className="flex items-center gap-2">
+                            <Loader size={14} /> Preparing...
+                          </div>
+                        ) : isVotePending && votingProposalId === proposal.id.toString() ? (
+                          <div className="flex items-center gap-2">
+                            <Loader size={14} /> Voting...
+                          </div>
+                        ) : (
+                          'Abstain'
+                        )}
+                      </Button>
                     </div>
                   </div>
-
-                  <div className="flex gap-2 mt-4">
-                    <Button
-                      disabled={!address}
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleVote(proposal.id, 'For')}
-                    >
-                      Vote For
-                    </Button>
-                    <Button
-                      disabled={!address}
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleVote(proposal.id, 'Against')}
-                    >
-                      Vote Against
-                    </Button>
-                    <Button
-                      disabled={!address}
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleVote(proposal.id, 'Abstain')}
-                    >
-                      Abstain
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
