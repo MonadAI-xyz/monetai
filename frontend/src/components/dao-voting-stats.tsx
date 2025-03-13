@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { formatEther } from "viem";
+import { formatEther } from 'viem';
 import { usePublicClient } from 'wagmi';
-import { CONTRACTS } from '@/config/contracts';
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader } from "@/components/ui/loader";
+import { Progress } from "@/components/ui/progress";
+import { CONTRACTS } from '@/config/contracts';
 
 // Add at the top with other constants
 const DEPLOY_BLOCK = BigInt("7583062");
@@ -17,6 +18,22 @@ type ProposalVotes = {
   againstVotes: bigint;
   abstainVotes: bigint;
 };
+
+interface ProposalCreatedLog {
+  args: {
+    proposalId: bigint;
+    proposer: `0x${string}`;
+    targets: `0x${string}`[];
+    values: bigint[];
+    signatures: string[];
+    calldatas: `0x${string}`[];
+    startBlock: bigint;
+    endBlock: bigint;
+    description: string;
+  };
+  data: `0x${string}`;
+  topics: [`0x${string}`];
+}
 
 export default function DAOVotingStats() {
   const [totalVotes, setTotalVotes] = useState<number>(0);
@@ -61,12 +78,12 @@ export default function DAOVotingStats() {
               },
               fromBlock,
               toBlock
-            }) as any;
+            }) as ProposalCreatedLog[];
 
             events.push(...chunkEvents);
             fromBlock = toBlock + BigInt(1); // Move to next chunk
             
-          } catch (error: any) {
+          } catch (error: Error) {
             if (error?.message?.includes('eth_getLogs is limited')) {
               // If we hit the limit, reduce chunk size and retry
               const newChunkSize = BigInt(Number(toBlock - fromBlock) / 2); // Convert to number for division
@@ -81,7 +98,7 @@ export default function DAOVotingStats() {
         }
 
         // Fetch votes for each proposal
-        const votesPromises = events.map((event: any) => 
+        const votesPromises = events.map((event: ProposalCreatedLog) => 
           publicClient.readContract({
             address: CONTRACTS.GOVERNOR.address as `0x${string}`,
             abi: CONTRACTS.GOVERNOR.abi,
@@ -97,7 +114,7 @@ export default function DAOVotingStats() {
         let totalAgainst = BigInt(0);
         let totalAbstain = BigInt(0);
 
-        allVotes.forEach((votes: any) => {
+        allVotes.forEach((votes: ProposalVotes) => {
           // Convert each value to BigInt explicitly
           totalFor += BigInt(votes.forVotes.toString());
           totalAgainst += BigInt(votes.againstVotes.toString());
@@ -150,28 +167,28 @@ export default function DAOVotingStats() {
             <span className="text-sm font-medium">Total Votes Cast</span>
             <span className="text-sm font-medium">{totalVotes.toFixed(2)}</span>
           </div>
-          <Progress value={100} className="h-2" />
+          <Progress className="h-2" value={100}/>
         </div>
         <div>
           <div className="flex justify-between mb-2">
             <span className="text-sm font-medium">For</span>
             <span className="text-sm font-medium">{forPercentage.toFixed(1)}%</span>
           </div>
-          <Progress value={forPercentage} className="h-2 bg-green-100" />
+          <Progress className="h-2 bg-green-100" value={forPercentage} />
         </div>
         <div>
           <div className="flex justify-between mb-2">
             <span className="text-sm font-medium">Against</span>
             <span className="text-sm font-medium">{againstPercentage.toFixed(1)}%</span>
           </div>
-          <Progress value={againstPercentage} className="h-2 bg-red-100" />
+          <Progress className="h-2 bg-red-100" value={againstPercentage} />
         </div>
         <div>
           <div className="flex justify-between mb-2">
             <span className="text-sm font-medium">Abstain</span>
             <span className="text-sm font-medium">{abstainPercentage.toFixed(1)}%</span>
           </div>
-          <Progress value={abstainPercentage} className="h-2 bg-gray-100" />
+          <Progress className="h-2 bg-gray-100" value={abstainPercentage} />
         </div>
       </CardContent>
     </Card>

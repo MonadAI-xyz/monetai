@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 
 import DAOGovernance from "@/components/dao-governance";
-import DAOVotingStats from "@/components/dao-voting-stats";
 import DAOProposalOverview from "@/components/dao-proposal-overview";
+import DAOVotingStats from "@/components/dao-voting-stats";
 import Header from "@/components/header";
 
 export const metadata: Metadata = {

@@ -2,15 +2,13 @@
 
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Cookies from 'js-cookie';
-import React, { useState } from 'react'
+import React from 'react'
 import { useAccountEffect, useSignMessage } from 'wagmi';
 
 import { getMessage, verifySignedMessage } from '@/lib/actions';
 
 export const ConnectWalletButton = () => {
   const { signMessage } = useSignMessage();
-  // TODO - show error message in toaster
-  const [error, setError] = useState<string | null>(null);
 
   // Listening to wallet account lifecycle events
   useAccountEffect({
@@ -46,7 +44,6 @@ export const ConnectWalletButton = () => {
           },
           onError: (err) => {
             console.error("Signing failed:", err);
-            setError("Signing failed. Please try again.");
           },
         }
       );
