@@ -68,7 +68,7 @@ export default function DAOVotingStats() {
             // Add delay between requests
             await new Promise(resolve => setTimeout(resolve, 200));
             
-            const chunkEvents = await publicClient.getLogs({
+            const chunkEvents :any[]= await publicClient.getLogs({
               address: CONTRACTS.GOVERNOR.address as `0x${string}`,
               event: {
                 type: 'event',
@@ -87,12 +87,12 @@ export default function DAOVotingStats() {
               },
               fromBlock,
               toBlock
-            }) as ProposalCreatedLog[];
+            }) as any;
 
             events.push(...chunkEvents);
             fromBlock = toBlock + BigInt(1); // Move to next chunk
             
-          } catch (error: Error) {
+          } catch (error: any) {
             if (error?.message?.includes('eth_getLogs is limited')) {
               // If we hit the limit, reduce chunk size and retry
               const newChunkSize = BigInt(Number(toBlock - fromBlock) / 2); // Convert to number for division

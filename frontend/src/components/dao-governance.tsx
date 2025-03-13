@@ -73,8 +73,8 @@ interface ProposalCreatedLog {
         values: bigint[];
         signatures: string[];
         calldatas: string[];
-        startBlock: bigint;
-        endBlock: bigint;
+        voteStart: bigint;  // Renamed from startBlock
+        voteEnd: bigint;    // Renamed from endBlock
         description: string;
     };
 }
@@ -241,7 +241,8 @@ export default function DAOGovernance() {
                 }
 
                 const CHUNK_SIZE = BigInt(25); // Reduced to 25 blocks per request
-                let events = [];
+
+                const events = [];
 
                 for (let fromBlock = DEPLOY_BLOCK; fromBlock <= END_BLOCK;) {
                     let toBlock = fromBlock + CHUNK_SIZE > END_BLOCK ? END_BLOCK : fromBlock + CHUNK_SIZE - BigInt(1);
@@ -252,8 +253,7 @@ export default function DAOGovernance() {
                         // Add delay between requests
                         await new Promise(resolve => setTimeout(resolve, 200));
 
-                        // @ts-expect-error - Temporary fix
-                        const chunkEvents = await publicClient.getLogs({
+                        const chunkEvents :any[]= await publicClient.getLogs({
                             address: CONTRACTS.GOVERNOR.address as `0x${string}`,
                             event: {
                                 type: 'event',
@@ -272,7 +272,7 @@ export default function DAOGovernance() {
                             },
                             fromBlock,
                             toBlock
-                        }) as ProposalCreatedLog[];
+                        }) as any;
 
                         events.push(...chunkEvents);
                         fromBlock = toBlock + BigInt(1); // Move to next chunk
