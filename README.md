@@ -5,6 +5,10 @@
 ## Overview
 MonetAI is an advanced AI-driven DeFAi trading agent designed to optimize trade execution, arbitrage, and portfolio management on the Monad blockchain. Leveraging cutting-edge AI models, real-time data feeds, and automated trading strategies, MonetAI provides a seamless and intelligent DeFi experience.
 
+MonetAI is built using MonadAI’s own AI agent infrastructure from scratch 
+It does not use or was not built using an existing AI agent infrastructure like ElizaOS or Zerepy
+MonetAI represents the foundation of a new hand built DefAI Agent Infrastructure.
+
 The AI agent's onchain interactions and activities can be viewed from the terminal here https://monetai.monadai.xyz/
 
 ## Features
