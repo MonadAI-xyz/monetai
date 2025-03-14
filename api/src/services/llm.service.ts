@@ -2,12 +2,7 @@ import BaseService from '@services/baseService.service';
 import config from '@config';
 import { OpenAI } from 'openai';
 import { logger } from '@utils/logger';
-import MarketDataService, { 
-  MarketDataParams, 
-  MarketDataResponse, 
-  TRADING_PAIRS, 
-  TradingPair 
-} from './marketData.service';
+import MarketDataService, { MarketDataParams, MarketDataResponse, TRADING_PAIRS, TradingPair } from './marketData.service';
 import { getTimeRanges, timestampToDate } from '@utils/time';
 import { HttpBadRequest } from '@exceptions/http/HttpBadRequest';
 import TradingService from '@services/trading.service';
@@ -16,7 +11,7 @@ import _ from 'lodash';
 import { sequelizeQueryBuilder } from '@utils/utils';
 import { HttpError } from '@exceptions/http/HttpError';
 import CurvanceService from './curvance.service';
-
+import XService from '@services/x.service';
 
 class LLMService extends BaseService {
   private openai: OpenAI;
@@ -24,6 +19,7 @@ class LLMService extends BaseService {
   private marketDataService: MarketDataService | null = null;
   private tradingService: TradingService | null = null;
   private curvanceService: CurvanceService | null = null;
+  private xService: XService | null = null;
   private wallet = { address: config.wallet.address };
 
   constructor() {
@@ -60,7 +56,7 @@ class LLMService extends BaseService {
         ...decision,
         reasoning: {
           ...decision.reasoning,
-          marketCondition: `DeepSeek Only: ${decision.reasoning.marketCondition}`,
+          marketCondition: `Model 2 Only: ${decision.reasoning.marketCondition}`,
         },
         confidence: 'MEDIUM',
       };
@@ -72,7 +68,7 @@ class LLMService extends BaseService {
         ...decision,
         reasoning: {
           ...decision.reasoning,
-          marketCondition: `GPT Only: ${decision.reasoning.marketCondition}`,
+          marketCondition: `Model 1 Only: ${decision.reasoning.marketCondition}`,
         },
         confidence: 'MEDIUM',
       };
@@ -83,24 +79,20 @@ class LLMService extends BaseService {
     const deepseekDecision = deepseekResult.value;
 
     // If both agree on action and pair, merge their decisions
-    if (gptDecision.action === deepseekDecision.action && 
-        gptDecision.pair === deepseekDecision.pair) {
+    if (gptDecision.action === deepseekDecision.action && gptDecision.pair === deepseekDecision.pair) {
       return {
         action: gptDecision.action,
         pair: gptDecision.pair,
         shouldExecute: gptDecision.action === 'BUY' || gptDecision.action === 'SELL',
         reasoning: {
-          marketCondition: `GPT & DeepSeek Agree: ${gptDecision.reasoning.marketCondition}`,
+          marketCondition: `All Models Agree: ${gptDecision.reasoning.marketCondition}`,
           technicalAnalysis: `Consensus: ${gptDecision.reasoning.technicalAnalysis}`,
-          riskAssessment: this.combineRiskAssessments(
-            gptDecision?.reasoning?.riskAssessment, 
-            deepseekDecision?.reasoning?.riskAssessment
-          ),
+          riskAssessment: this.combineRiskAssessments(gptDecision?.reasoning?.riskAssessment, deepseekDecision?.reasoning?.riskAssessment),
           pairSelection: gptDecision.reasoning.pairSelection,
           comparativeAnalysis: {
             ...gptDecision.reasoning.comparativeAnalysis,
-            modelAgreement: "Both models agree on pair selection and action"
-          }
+            modelAgreement: 'Both models agree on pair selection and action',
+          },
         },
         confidence: 'HIGH',
       };
@@ -112,16 +104,16 @@ class LLMService extends BaseService {
       pair: null,
       shouldExecute: false,
       reasoning: {
-        marketCondition: 'Mixed signals between GPT and DeepSeek',
-        technicalAnalysis: `GPT suggests ${gptDecision.action} ${gptDecision.pair}, DeepSeek suggests ${deepseekDecision.action} ${deepseekDecision.pair}`,
+        marketCondition: 'Mixed signals between Models',
+        technicalAnalysis: `Model 1 suggests ${gptDecision.action} ${gptDecision.pair}, Model 2 suggests ${deepseekDecision.action} ${deepseekDecision.pair}`,
         riskAssessment: 'HIGH due to model disagreement',
         pairSelection: 'Models disagree on pair selection',
         comparativeAnalysis: {
-          volatilityComparison: "Analysis suspended due to model disagreement",
-          trendAlignment: "Models show different interpretations",
-          relativeStrength: "No consensus on strongest pair",
-          modelAgreement: "Models disagree on best trading opportunity"
-        }
+          volatilityComparison: 'Analysis suspended due to model disagreement',
+          trendAlignment: 'Models show different interpretations',
+          relativeStrength: 'No consensus on strongest pair',
+          modelAgreement: 'Models disagree on best trading opportunity',
+        },
       },
       confidence: 'LOW',
     };
@@ -218,7 +210,7 @@ class LLMService extends BaseService {
     return 'LOW';
   }
 
-  public async makeDecision(params: Partial<MarketDataParams>) {
+  public async makeDecision(params?: Partial<MarketDataParams>) {
     try {
       const timeRanges = getTimeRanges();
       const marketDataParams = {
@@ -230,66 +222,71 @@ class LLMService extends BaseService {
       // Get market data for all pairs and Curvance
       const [tradingMarketData, curvanceMarketData] = await Promise.all([
         this.marketDataService.getAllPairsData(marketDataParams),
-        this.curvanceService.getMarketData()
+        this.curvanceService.getMarketData(),
       ]);
 
       // Calculate indicators for all pairs
       const tradingIndicators = this.calculateIndicatorsForAllPairs(tradingMarketData);
-      
+
       // Get trading decision across all pairs
       const tradingDecision = await this.getCollectiveDecision(tradingIndicators);
 
       // Get Curvance decision
       const curvanceDecision = await this.getAIDecision({
         trading: tradingMarketData,
-        lending: curvanceMarketData
+        lending: curvanceMarketData,
       });
 
       // Execute both decisions if needed
       const executions = await Promise.allSettled([
         // Execute trade if shouldExecute is true and we have a valid pair
-        tradingDecision.shouldExecute && tradingDecision.pair
-          ? this.handleTradeSignal(tradingDecision)
-          : Promise.resolve(),
-          
+        tradingDecision.shouldExecute && tradingDecision.pair ? this.handleTradeSignal(tradingDecision) : Promise.resolve(),
+
         // Execute Curvance actions if shouldExecute is true
         curvanceDecision.shouldExecute && curvanceDecision.actions?.length > 0
           ? this.executeCurvanceDecision(curvanceDecision, curvanceMarketData)
-          : Promise.resolve()
+          : Promise.resolve(),
       ]);
-
-      // Save combined decision history
-      const decisionHistory = await DecisionHistory.create({
+      const finalDecision = {
         decision: {
           trading: tradingDecision,
           curvance: {
             ...curvanceDecision,
-            executionResults: executions[1].status === 'fulfilled' ? executions[1].value : null
-          }
+            executionResults: executions[1].status === 'fulfilled' ? executions[1].value : null,
+          },
         },
-      });
+      };
+      try {
+        const msg = await this.generateTradingSummary(finalDecision);
+        console.log('X msg: ', msg);
+        await this.xService.postToX(msg);
+      } catch (e) {
+        logger.error('X error', e);
+      }
+      // Save combined decision history
+      const decisionHistory = await DecisionHistory.create(finalDecision);
 
       return {
         timestamp: new Date().toISOString(),
         indicators: {
           trading: tradingIndicators,
-          lending: this.formatLendingMetrics(curvanceMarketData)
+          lending: this.formatLendingMetrics(curvanceMarketData),
         },
         recommendations: {
           trading: {
             ...tradingDecision,
-            id: decisionHistory.id
+            id: decisionHistory.id,
           },
           curvance: {
             ...curvanceDecision,
-            id: decisionHistory.id
-          }
-        }
+            id: decisionHistory.id,
+          },
+        },
       };
     } catch (error) {
-      logger.error({ 
-        message: `Error in LLM service: ${error.message}`, 
-        labels: { origin: 'LLMService' } 
+      logger.error({
+        message: `Error in LLM service: ${error.message}`,
+        labels: { origin: 'LLMService' },
       });
       throw error;
     }
@@ -362,12 +359,12 @@ class LLMService extends BaseService {
       const [gptResult, deepseekResult]: any[] = await Promise.allSettled([
         this.getModelDecision(this.openai, config.ai.openai.model, {
           lending: lendingMetrics,
-          prompt
+          prompt,
         }),
         this.getModelDecision(this.deepseek, config.ai.deepseek.model, {
           lending: lendingMetrics,
-          prompt
-        })
+          prompt,
+        }),
       ]);
 
       // Parse and validate decisions
@@ -391,8 +388,8 @@ class LLMService extends BaseService {
         reasoning: {
           marketAnalysis: 'Error occurred while getting decision',
           riskAssessment: 'HIGH',
-          yieldStrategy: 'No strategy due to error'
-        }
+          yieldStrategy: 'No strategy due to error',
+        },
       };
     }
   }
@@ -408,16 +405,20 @@ class LLMService extends BaseService {
           actions: [],
           reasoning: {
             marketAnalysis: 'Both models failed to respond',
-            riskAssessment: 'HIGH'
-          }
+            riskAssessment: 'HIGH',
+          },
         };
       }
 
       // Parse successful responses
-      const gptDecision = gptResult.status === 'fulfilled' ? 
-        (typeof gptResult.value === 'string' ? JSON.parse(gptResult.value) : gptResult.value) : null;
-      const deepseekDecision = deepseekResult.status === 'fulfilled' ? 
-        (typeof deepseekResult.value === 'string' ? JSON.parse(deepseekResult.value) : deepseekResult.value) : null;
+      const gptDecision =
+        gptResult.status === 'fulfilled' ? (typeof gptResult.value === 'string' ? JSON.parse(gptResult.value) : gptResult.value) : null;
+      const deepseekDecision =
+        deepseekResult.status === 'fulfilled'
+          ? typeof deepseekResult.value === 'string'
+            ? JSON.parse(deepseekResult.value)
+            : deepseekResult.value
+          : null;
 
       // If one model fails, use the other with medium confidence
       if (!gptDecision) {
@@ -425,7 +426,7 @@ class LLMService extends BaseService {
           ...deepseekDecision,
           confidence: 'MEDIUM',
           actions: deepseekDecision.actions || [],
-          shouldExecute: false
+          shouldExecute: false,
         };
       }
 
@@ -434,10 +435,10 @@ class LLMService extends BaseService {
           ...gptDecision,
           confidence: 'MEDIUM',
           actions: gptDecision.actions || [],
-          shouldExecute: false
+          shouldExecute: false,
         };
       }
-      
+
       // If both agree on the action and token, merge their decisions
       if (gptDecision.action === deepseekDecision.action) {
         return {
@@ -446,18 +447,15 @@ class LLMService extends BaseService {
           confidence: 'HIGH',
           shouldExecute: gptDecision.action !== 'WAIT',
           reasoning: {
-            marketAnalysis: `GPT & DeepSeek Agree: ${gptDecision.reasoning.marketCondition || gptDecision.reasoning.marketAnalysis}`,
-            riskAssessment: gptDecision.reasoning.riskAssessment
+            marketAnalysis: `Both Models Agree: ${gptDecision.reasoning.marketCondition || gptDecision.reasoning.marketAnalysis}`,
+            riskAssessment: gptDecision.reasoning.riskAssessment,
           },
           // Ensure actions array exists
-          actions: [
-            ...(gptDecision.actions || []),
-            ...(deepseekDecision.actions || [])
-          ].map(action => ({
+          actions: [...(gptDecision.actions || []), ...(deepseekDecision.actions || [])].map(action => ({
             ...action,
             amount: action?.amount?.toString() || '0',
-            recipient: action?.recipient || this.wallet.address
-          }))
+            recipient: action?.recipient || this.wallet.address,
+          })),
         };
       }
 
@@ -476,8 +474,8 @@ class LLMService extends BaseService {
         actions: [],
         reasoning: {
           marketAnalysis: 'Models disagree on market strategy',
-          riskAssessment: 'HIGH due to model disagreement'
-        }
+          riskAssessment: 'HIGH due to model disagreement',
+        },
       };
     } catch (error) {
       logger.error({
@@ -494,8 +492,8 @@ class LLMService extends BaseService {
         actions: [],
         reasoning: {
           marketAnalysis: 'Error parsing model responses',
-          riskAssessment: 'HIGH'
-        }
+          riskAssessment: 'HIGH',
+        },
       };
     }
   }
@@ -508,7 +506,7 @@ class LLMService extends BaseService {
       }, {}),
       utilization: Object.keys(lendingData.liquidity).reduce((acc, token) => {
         const { totalBorrows, totalSupply } = lendingData.liquidity[token];
-        acc[token] = (parseFloat(totalBorrows) / parseFloat(totalSupply) * 100).toFixed(2) + '%';
+        acc[token] = ((parseFloat(totalBorrows) / parseFloat(totalSupply)) * 100).toFixed(2) + '%';
         return acc;
       }, {}),
       availableLiquidity: Object.keys(lendingData.liquidity).reduce((acc, token) => {
@@ -545,26 +543,15 @@ class LLMService extends BaseService {
           let result;
           switch (action.type) {
             case 'DEPOSIT':
-              result = await this.curvanceService.depositFunds(
-                action.amount,
-                action.token
-              );
+              result = await this.curvanceService.depositFunds(action.amount, action.token);
               break;
 
             case 'WITHDRAW':
-              result = await this.curvanceService.withdrawFunds(
-                action.amount,
-                action.token,
-                action.recipient || this.wallet.address
-              );
+              result = await this.curvanceService.withdrawFunds(action.amount, action.token, action.recipient || this.wallet.address);
               break;
 
             case 'BORROW':
-              result = await this.curvanceService.borrowFunds(
-                action.amount,
-                action.token,
-                action.recipient || this.wallet.address
-              );
+              result = await this.curvanceService.borrowFunds(action.amount, action.token, action.recipient || this.wallet.address);
               break;
 
             default:
@@ -588,7 +575,6 @@ class LLMService extends BaseService {
             txHash: result.hash,
             labels: { origin: 'LLMService' },
           });
-
         } catch (error) {
           logger.error({
             message: `Failed to execute ${action.type}`,
@@ -616,9 +602,9 @@ class LLMService extends BaseService {
         },
         {
           where: {
-            id: decision.id
-          }
-        }
+            id: decision.id,
+          },
+        },
       );
 
       return results;
@@ -681,8 +667,8 @@ class LLMService extends BaseService {
 
         // Check liquidity for withdrawals and borrows
         if (action.type === 'WITHDRAW' || action.type === 'BORROW') {
-          const availableLiquidity = parseFloat(currentMarket.liquidity[token]?.totalSupply || '0') - 
-                                   parseFloat(currentMarket.liquidity[token]?.totalBorrows || '0');
+          const availableLiquidity =
+            parseFloat(currentMarket.liquidity[token]?.totalSupply || '0') - parseFloat(currentMarket.liquidity[token]?.totalBorrows || '0');
           if (availableLiquidity < amount) {
             logger.warn({
               message: `Insufficient liquidity for ${token}`,
@@ -989,7 +975,7 @@ class LLMService extends BaseService {
 
   private calculateIndicatorsForAllPairs(marketData: Record<TradingPair, MarketDataResponse>) {
     const indicators = {} as Record<TradingPair, any>;
-    
+
     for (const [pair, data] of Object.entries(marketData)) {
       indicators[pair] = this.calculateIndicators(data);
     }
@@ -999,7 +985,7 @@ class LLMService extends BaseService {
 
     return {
       pairs: indicators,
-      crossPairAnalysis
+      crossPairAnalysis,
     };
   }
 
@@ -1014,10 +1000,10 @@ class LLMService extends BaseService {
         for (let j = i + 1; j < TRADING_PAIRS.length; j++) {
           const pair1 = TRADING_PAIRS[i];
           const pair2 = TRADING_PAIRS[j];
-          
+
           const returns1 = this.calculateReturns(marketData[pair1].c || []);
           const returns2 = this.calculateReturns(marketData[pair2].c || []);
-          
+
           correlations[`${pair1}_${pair2}`] = this.calculateCorrelation(returns1, returns2);
         }
       }
@@ -1045,7 +1031,7 @@ class LLMService extends BaseService {
         relativeStrength,
         volatilityRank,
         strongestTrend: this.findStrongestTrend(marketData),
-        marketRegime: this.determineMarketRegime(marketData)
+        marketRegime: this.determineMarketRegime(marketData),
       };
     } catch (error) {
       logger.error({
@@ -1058,7 +1044,7 @@ class LLMService extends BaseService {
         relativeStrength: {},
         volatilityRank: {},
         strongestTrend: null,
-        marketRegime: 'UNKNOWN'
+        marketRegime: 'UNKNOWN',
       };
     }
   }
@@ -1124,6 +1110,43 @@ class LLMService extends BaseService {
       return 'UNKNOWN';
     }
   }
+
+  public generateTradingSummary = async (tradingData: object): Promise<string> => {
+    const prompt = `
+Summarize the following trading data in a concise X post (max 230 characters). Ensure the structure follows this format:
+
+🚨 Trading Update 🚨  
+📉 Action: [ACTION] – [MARKET SIGNALS]. [RISK FACTORS].  
+🤖 Insights: 🔹 [KEY INSIGHT 1] 🔹 [KEY INSIGHT 2] 🔹 [KEY INSIGHT 3]  
+⚠️ Confidence: [CONFIDENCE] → [EXECUTION DECISION]  
+
+#Crypto #Trading #MarketAnalysis  
+
+**Limit response to 230 characters.**  
+
+Trading Data: ${JSON.stringify(tradingData, null, 2)}
+`;
+
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an AI that creates concise trading summaries for X posts, ensuring they do not exceed 230 characters.',
+          },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.5,
+        max_tokens: 200,
+      });
+
+      return response.choices[0].message.content;
+    } catch (error) {
+      console.error('Error generating trading summary:', error);
+      return null;
+    }
+  };
 }
 
 export default LLMService;

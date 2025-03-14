@@ -6,6 +6,7 @@ import MarketDataService from './marketData.service';
 import TradingService from './trading.service';
 import LlmQueue from './queues/llmDecision.worker';
 import CurvanceService from './curvance.service';
+import XService from '@services/x.service';
 
 import _ from 'lodash';
 
@@ -29,6 +30,7 @@ export const allServices = {
   CurvanceService,
   // Queues
   LlmQueue,
+  XService,
 };
 
 class Services {
