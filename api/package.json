@@ -81,6 +81,7 @@
     "supertest": "^7.0.0",
     "swagger-ui-express": "^5.0.1",
     "ts-jest": "^29.2.5",
+    "twitter-api-v2": "^1.20.2",
     "uuid-parse": "^1.1.0",
     "uuidv4": "^6.2.13",
     "viem": "^2.23.6",
