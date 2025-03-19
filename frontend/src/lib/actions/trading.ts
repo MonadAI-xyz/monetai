@@ -25,6 +25,7 @@ export const getDecisions = async () => {
   // Send request
   const response = await fetchWrapper<TradingHistoryResponse>('/api/llms/decisions', {
     method: "GET",
+    headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
   });
 
   return response;
