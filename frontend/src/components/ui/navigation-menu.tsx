@@ -65,7 +65,8 @@ const navigationMenuTriggerStyle = tv({
     'group inline-flex h-9 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium hover:text-accent-foreground focus:text-accent-foreground disabled:pointer-events-none disabled:opacity-50 data-[active=true]:text-accent-foreground ring-ring/10 dark:ring-ring/20 dark:outline-ring/40 outline-ring/50 transition-[color,box-shadow] focus-visible:ring-4 focus-visible:outline-1',
     'hover:bg-purple-50 dark:hover:bg-purple-500',
     'focus:bg-purple-50 dark:focus:bg-purple-500',
-    'data-[active=true]:bg-purple-50 dark:data-[active=true]:bg-purple-500',
+    // 'data-[active=true]:bg-purple-50 dark:data-[active=true]:bg-purple-500',
+    'data-[active]:bg-purple-50 dark:data-[active]:bg-purple-500',
     'data-[state=open]:bg-purple-50 dark:data-[state=open]:bg-purple-500',
   ],
 });
