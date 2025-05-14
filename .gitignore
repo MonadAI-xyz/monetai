@@ -63,3 +63,5 @@ smart-contracts/.env
 # misc
 .DS_Store
 *.pem
+
+.circleci/tmpconfig.yml
