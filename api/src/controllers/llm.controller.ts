@@ -25,7 +25,7 @@ class LLMController {
 
   public getDecisions = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const decisions = await this.llmService.getDecisionHistory(req.params);
+      const decisions = await this.llmService.getDecisionHistory(req.query);
       return responsePreparer(200, decisions)(req, res, next);
     } catch (error) {
       next(error);
