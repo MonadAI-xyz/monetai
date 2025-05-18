@@ -131,9 +131,12 @@ class App {
       this.app.use('/api', route.router);
     });
     if (adminRoutes?.length > 0) {
+      const adminRouter = express.Router();
+      adminRouter.use(namespaceMiddleware('ACCOUNTANT'));
       adminRoutes.forEach(route => {
-        this.app.use('/api/admin/', namespaceMiddleware('ACCOUNTANT'), route.router);
+        adminRouter.use('/', route.router);
       });
+      this.app.use('/api/admin', adminRouter);
     }
   }
 

@@ -6,16 +6,13 @@ export interface ITokenData {
 }
 
 export interface IRequestWithUser extends Request {
-  user: any;
-  headers: any;
-  query: any;
-  params: any;
-  body: any;
+  user: {
+    id: string;
+    [key: string]: any;
+  };
+  namespace?: string;
   data?: any;
   status?: number;
   userIP?: string;
-
-  namespace?: string;
-
   id?: string;
 }

@@ -1,13 +1,14 @@
-import { NextFunction, Response } from 'express';
+import { NextFunction, Request, RequestHandler, Response } from 'express';
 import { IRequestWithUser } from '@interfaces/auth.interface';
 
-const successMiddleware = async (req: IRequestWithUser, res: Response, next: NextFunction) => {
+const successMiddleware: RequestHandler = (req: Request, res: Response, next: NextFunction): void => {
   try {
-    let data = req.data;
-    if (!data || !req.status) {
+    const reqWithUser = req as IRequestWithUser;
+    const data = reqWithUser.data;
+    if (!data || !reqWithUser.status) {
       next();
     } else {
-      return res.status(req?.status || 200).json({ data: data || {} });
+      res.status(reqWithUser?.status || 200).json({ data: data || {} });
     }
   } catch (error) {
     console.log('[SUCCESS MIDDLEWARE] Error:', error);
