@@ -1,10 +1,10 @@
 import { Metadata } from "next";
 
-import { columns } from "./columns";
-import { lendingHistoryData } from "./data";
-
 import Header from "@/components/header";
 import { DataTable } from "@/components/ui/data-table";
+
+import { columns } from "./columns";
+import { lendingHistoryData } from "./data";
 
 
 export const metadata: Metadata = {

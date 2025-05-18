@@ -1,3 +1,6 @@
+import '@/styles/main.css';
+import '@rainbow-me/rainbowkit/styles.css';
+
 import { Metadata, Viewport } from 'next';
 import type { PropsWithChildren } from 'react';
 
@@ -6,9 +9,6 @@ import { CoreLayout } from '@/components/core-layout';
 import { Toaster } from '@/components/ui/sonner';
 import { inter } from '@/fonts';
 import { cn } from '@/functions/cn';
-
-import '@/styles/main.css';
-import '@rainbow-me/rainbowkit/styles.css';
 
 export const viewport: Viewport = {
   themeColor: 'black',

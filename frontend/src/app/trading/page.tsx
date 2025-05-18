@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 
 import Header from "@/components/header";
-import { DataTable, columns } from "@/components/ui/data-table";
+import { columns,DataTable } from "@/components/ui/data-table";
 import { transformTradingHistoryData } from "@/functions/transform-trading-history-data";
 import { getTradingHistory } from "@/lib/actions";
 

@@ -2,9 +2,10 @@
 
 
 import {ColumnDef} from '@tanstack/react-table';
+import {format} from "date-fns"
+
 import {DataTable,} from '@/components/ui/data-table';
 import {replaceMultipleWords} from '@/functions';
-import {format} from "date-fns"
 
 type DecisionsTradingTable = {
     id: string;

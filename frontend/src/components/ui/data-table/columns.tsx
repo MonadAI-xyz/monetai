@@ -2,6 +2,7 @@
 
 import {ColumnDef} from '@tanstack/react-table';
 import {format} from "date-fns"
+
 import {DataTableColumnHeader} from '@/components/ui/data-table';
 import {ITradingHistoryTable} from '@/types';
 

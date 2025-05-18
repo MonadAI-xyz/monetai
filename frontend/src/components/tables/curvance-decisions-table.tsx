@@ -2,8 +2,9 @@
 
 
 import {ColumnDef} from '@tanstack/react-table';
-import {DataTable,} from '@/components/ui/data-table';
 import {format} from "date-fns";
+
+import {DataTable,} from '@/components/ui/data-table';
 
 type CurvanceDecisionsTableProps = {
     id: string;

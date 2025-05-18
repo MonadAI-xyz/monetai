@@ -4,8 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import React from 'react';
 
-import { ConnectWalletButton } from './wallet';
-
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -13,6 +11,8 @@ import {
   NavigationMenuList,
   navigationMenuTriggerStyle
 } from '@/components/ui/navigation-menu';
+
+import { ConnectWalletButton } from './wallet';
 
 interface INavigationMenuItem {
   title: string;

@@ -1,9 +1,9 @@
 "use server";
 
-import { fetchWrapper } from "../fetch-wrapper";
-
 import { generateQueryParamsString } from "@/functions";
 import { IQueryData, ITradingHistoryData } from "@/types";
+
+import { fetchWrapper } from "../fetch-wrapper";
 
 type TradingHistoryResponse = {
   count: number; // Total number of records
