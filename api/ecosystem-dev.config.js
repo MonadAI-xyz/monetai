@@ -1,7 +1,7 @@
 module.exports = {
     apps: [{
       name: 'monetai-dev',
-      script: 'build/app.js',
+      script: 'build/src/server.js',
       instances: 2,
       exec_mode: 'cluster',
       autorestart: true,

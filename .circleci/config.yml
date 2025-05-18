@@ -129,7 +129,6 @@ jobs:
             ssh root@$DROPLET_IP 'cd /var/www/monetai-dev && \
             tar -xzf deploy.tar.gz && \
             rm deploy.tar.gz && \
-
             source ~/.profile && \
             source ~/.bashrc && \
             export NVM_DIR="$HOME/.nvm" && \
