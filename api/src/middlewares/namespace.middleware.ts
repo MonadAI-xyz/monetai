@@ -1,11 +1,11 @@
-import { NextFunction, RequestHandler, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import HttpException from '@exceptions/http/HttpException';
 import { IRequestWithUser } from '@interfaces/auth.interface';
 
-const namespaceMiddleware = (namespace: string): RequestHandler => {
-  return async (req: IRequestWithUser, res: Response, next: NextFunction) => {
+const namespaceMiddleware = (namespace: string) => {
+  return function middleware(req: Request, res: Response, next: NextFunction): void {
     try {
-      req.namespace = namespace;
+      (req as IRequestWithUser).namespace = namespace;
       next();
     } catch (error) {
       console.log('[NAMESPACE MIDDLEWARE]', error);

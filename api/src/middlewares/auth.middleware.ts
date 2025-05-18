@@ -25,7 +25,8 @@ const authMiddleware = (check?: 'USER' | 'ADMIN'): RequestHandler => {
 
     try {
       // Extract JWT from header
-      const token: string = req.headers['x-monetai-auth'] || null;
+      const authHeader = req.headers['x-monetai-auth'];
+      const token = Array.isArray(authHeader) ? authHeader[0] : authHeader;
 
       // Check if authentication token is provided
       if (!token) {
