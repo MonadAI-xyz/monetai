@@ -149,7 +149,7 @@ workflows:
             branches:
               only:
                 - develop
-                - feature/develop-deploy
+                # - feature/develop-deploy
                 - main
       - deploy-dev:
           requires:
@@ -157,7 +157,7 @@ workflows:
           filters:
             branches:
               only:
-                - feature/develop-deploy
+                # - feature/develop-deploy
                 - develop
       - deploy-prod:
           requires:
